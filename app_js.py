@@ -16,18 +16,6 @@ btn_dt_index = pd.date_range(start=bf_dt,end=dt).map(lambda x : str(x).replace('
 # dt = '20210630'
 
 @app.route('/')
-def haram():
-   return render_template('candle.html')
-
-@app.route('/result')
-def result():
-   f_nm = file_path+'score_af_'+dt+'.csv'
-   df = pd.read_csv(f_nm, encoding='cp949')
-   result_list = list(df.values)
-   df_h = df.to_html(table_id='table', header=True)
-   return render_template('result.html', result_list = result_list, df_html = df_h, ssibal = 'ssibalnum', df = df)
-
-@app.route('/chart')
 def chart():
     # 데이터 임포트
     f_nm = file_path + 'score_' + dt + '.csv'
