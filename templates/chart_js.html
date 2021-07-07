@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> 코인깍두기 </title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script type="text/JavaScript" src="http://code.jquery.com/jquery-1.7.min.js">
+    </script>
+
+    <style type="text/css">
+        @charset "utf-8";
+        .btn{
+            position:relative;
+            color: #5f6368;
+            border: solid 1px #dadce0;
+            border-radius: 1vw;
+            display: inline-block;
+            padding: 6px 8px 6px 8px;
+
+<!--            /*padding: top right bottom left*/-->
+		    cursor: pointer;
+        }
+        .clicked_btn{
+            border-color: #4285f4;
+            color: #4285f4;
+            background: #e9f1fe;
+        }
+        .btn_idx{
+            position:relative;
+            color: #5f6368;
+            border: solid 1px #dadce0;
+            border-radius: 1vw;
+            display: inline-block;
+            padding: 6px 8px 6px 8px;
+
+<!--            /*padding: top right bottom left*/-->
+		    cursor: pointer;
+        }
+
+    </style>
+
+<!--    <script type="text/javascript" charset="utf-8" src="js/Chart.min.js"></script>-->
+<!--    <script type="text/javascript" charset="utf-8" src="js/Chart.roundedBarCharts.min.js"></script>-->
+</head>
+
+<body>
+    <div class="chart-container2" style="position: relative; height:100vh; width:90vw">
+        <canvas id="test1" style="height:150vh; width:90vw"></canvas>
+        <canvas id="test2"></canvas>
+        <div id="graph_btn">
+            {% for x in bit_gg_dict.지표컬럼%}
+                <button class="btn_idx" id=btn_idx_{{x}} value={{loop.index}}>{{x}}</button>
+            {% endfor %}
+            <div id="chart_div"></div>
+        </div>
+        <div id="word_btn">
+<!--        워드클라우드 날짜 버튼-->
+            {% for x in btn_dt_index %}
+                <button class="btn" id=btn_{{x}} value={{x}}>{{x}}</button>
+            {% endfor %}
+            <br><br>
+            <img id="img" src="../static/images/wordcloud_20210705.jpg" width="400", height="400"/>
+<!--            <img id="img" src="{{ url_for('static', filename='images/wordcloud_20210705.jpg')}}" width="400", height="400"/>-->
+        </div>
+    </div>
+<!--    함수 구문 -->
+
+        <script type="text/javascript">
+            // 그래프 지표 활성/비활성 배열
+            var bit_gg_dict = {{bit_gg_dict|tojson}};
+
+            // 구글 차트 날짜 + 양봉 raw 데이터(날짜,저가,오픈,종가,고가)
+            var candle_data = bit_gg_dict.candle_data;
+            var candle_data_len = candle_data.length; // 전체 행 건수
+            var candle_col_len = candle_data[0].length; // 전체 열 건수
+
+            console.log('양봉 데이터 행 건수 : ',candle_data_len);
+            console.log('양봉 데이터 열 건수 : ',candle_col_len);
+
+            // 구글 차트 지수 데이터(스코어_SCALING,RSI_3,RSI_7,RSI_14)
+            var index_data = bit_gg_dict.index_data;
+            var index_col_len = index_data[0].length; // 지표 데이터 열 건수
+            var idx_arr = new Array(); // 지표 컬럼 추가 및 제거를 위한 배열 생성
+            idx_arr.length = 4;
+            idx_arr.fill('',0,idx_arr.length);
+
+            console.log('컬럼및위치정보 배열 : ',idx_arr);
+            console.log('컬럼및위치정보 배열 길이 : ',idx_arr.length);
+            console.log('지수 데이터 열 건수 : ',index_col_len);
+
+            $(document).ready(function(){
+            // 워드클라우드 클릭
+                $(".btn").on('click', function(){
+                    var dt = $(this).val();
+                    var id = $(this).attr('id');
+                    var dt_str = dt.split("-")[0]+dt.split("-")[1]+dt.split("-")[2];
+                    document.getElementById("img").src = "../static/images/wordcloud_"+dt_str+".jpg";
+
+                    $('.btn[value='+dt+']').addClass('clicked_btn');
+                    $('.btn[value!='+dt+']').removeClass('clicked_btn');
+                });
+            // 양봉 및 차트 데이터 지표 클릭
+                $(".btn_idx").on('click', function(){
+                    var idx_tag = $(this).val();
+                    var idx_r = $(this).val()-1;
+                    var change_flag = false;
+                    console.log('################변경전################');
+                    console.log('지표 배열 : ',idx_arr);
+                    console.log('버튼 index : ',idx_r);
+
+                    // 클릭된 지표 컬럼이 추가되지 않은 상태일때
+                    if (idx_arr[idx_r] === '') {
+                        idx_arr[idx_r] = candle_data[0].length // 컬럼 추가될 index 위치 결정(열건수)
+                        $('.btn_idx[value='+idx_tag+']').addClass('clicked_btn'); // 클릭한 버튼 활성화 CSS
+                        for(let i = 0; i < candle_data_len; i++) {
+                            candle_data[i][idx_arr[idx_r]] = index_data[i][idx_r];
+                        } // for문
+                        console.log('추가 후 데이터 : ',candle_data);
+
+                    // 클릭된 지표 컬럼이 이미 추가되어 있는 상태일때
+                    } else {
+                        // 추가된 컬럼이였기 때문에 제거
+                        console.log(idx_arr[idx_r]);
+                        // 실제 데이터에서 해당 지표 컬럼 제거
+                        for (var i=0; i<candle_data_len; i++) {
+                            candle_data[i].splice(idx_arr[idx_r],1);
+                         }
+                        // 삭제된 컬럼 우측의 컬럼 index는 -1
+                        for (var i=0; i<idx_arr.length; i++) {
+                            if (idx_arr[idx_r] < idx_arr[i]) {
+                                idx_arr[i] = idx_arr[i] - 1;
+                            }
+                        }
+
+
+                        // 해당 컬럼 삭제 상태로 변경
+                        idx_arr[idx_r] = ''
+                        $('.btn_idx[value='+idx_tag+']').removeClass('clicked_btn'); // 클릭한 버튼 비활성화 CSS
+                        console.log('############ 변경 후 ############')
+                        console.log('제거 후 지표 배열 : ',idx_arr);
+                        console.log('제거 후 데이터 : ',candle_data);
+
+                    }
+                    console.log('변경후');
+                    console.log('지표컬럼 배열 :',idx_arr);
+                    gg_chart(candle_data);
+
+                });
+
+            gg_chart(candle_data);
+            });
+
+        </script>
+
+<!-- 1.   Chart.js : 일별 코인별 긍부정 지수 막대 차트 -->
+        <script>
+            var to_dict = {{to_dict|tojson}};
+            var ctx = document.getElementById('test1').getContext('2d');
+            var chart = new Chart(ctx, {
+<!--                // The type of chart we want to create-->
+                type: 'horizontalBar',
+<!--                // The data for our dataset-->
+                data: {
+                        labels: to_dict.코인명,
+                        datasets: [{ label: '긍정 지수',
+                                       backgroundColor: 'rgba(20, 150, 240, 0.5)'
+                                       , borderColor: 'rgba(20, 150, 240, 1.5)'
+    <!--                                        긍정 스코어 리스트 -->
+                                               , data: to_dict.스코어_긍정 },
+
+                                       { label: '부정 지수',
+                                       backgroundColor: 'rgba(255, 63, 41, 0.5)'
+
+                                       , borderColor: 'rgba(255, 63, 41, 1.5)'
+
+    <!--                                        긍정 스코어 리스트 -->
+                                               , data: to_dict.스코어_부정 }
+                                   ]
+                       },
+
+
+
+<!--                    // Configuration options go here-->
+                options: { responsive : false
+                        , title: { display: true, text: '오늘의 코인별 긍정 및 부정 지표', fontSize: 30, fontColor: 'rgba(46, 49, 49, 1)' }
+                        , indexAxis : 'y'
+                        , cornerRadius: 20
+                        , legend: { labels: { fontColor: 'rgba(83, 51, 237, 1)', fontSize: 12 } }
+                        , scales: { xAxes: [{ ticks: {fontColor: 'rgba(27, 163, 156, 1)', fontSize: '10' } }]
+                        , yAxes: [{ ticks: { beginAtZero: true, fontColor: 'rgba(8, 12, 59, 1)', fontSize: '12' } }] } } });
+        </script>
+<!-- 2.   Chart.js : 긍부정 지수 및 종가(일별) SCALING 차트 -->
+        <script>
+            var bit_dict = {{bit_dict|tojson}};
+            var bit_info_dict = {{bit_info_dict|tojson}};
+            var ctx = document.getElementById('test2').getContext('2d');
+            var chart = new Chart(ctx, {
+<!--                // The type of chart we want to create-->
+                type: 'line',
+<!--                // The data for our dataset-->
+                data: {
+                        labels: bit_dict.등록시간,
+                        datasets: [{ label: '긍부정 지수',
+                                       backgroundColor: 'rgba(82, 255, 200, 0.3)'
+                                       , borderColor: 'rgba(82, 255, 200, 1.5)'
+    <!--                                        스코어 합계 리스트 -->
+                                               , data: bit_dict.스코어_SCALING },
+                                    { label: '종가 지수',
+                                       backgroundColor: 'rgba(247, 141, 56, 0.6)'
+                                       , borderColor: 'rgba(247, 141, 56, 1.5)'
+    <!--                                        긍정 스코어 리스트 -->
+                                               , data: bit_info_dict.종가_SCALING }
+
+                                   ]
+                       },
+<!--                    // Configuration options go here-->
+                options: { title: { display: true, text: '일별로 보는 비트코인에 대한 긍부정 지수'
+                        , fontSize: 30, fontColor: 'rgba(46, 49, 49, 1)' }
+                        , legend: { labels: { fontColor: 'rgba(83, 51, 237, 1)', fontSize: 10 } }
+                        , scales: { xAxes: [{ ticks: { fontColor: 'rgba(27, 163, 156, 1)', fontSize: '10' } }]
+                        , yAxes: [{ ticks: { beginAtZero: true, fontColor: 'rgba(246, 36, 89, 1)', fontSize: '15' } }] } } });
+        </script>
+<!-- 3.   구글 차트 : 긍부정 지수 및 바이낸스 일봉 차트 -->
+        <script type="text/javascript">
+              function gg_chart(candle_data) {
+              google.charts.load('current', {'packages':['corechart']});
+              google.charts.setOnLoadCallback(drawChart);
+              console.log('진짜진짜 들어갈 데이터 : ',candle_data);
+              idx_len = candle_data[0].length - 5;
+
+
+              function drawChart() {
+                var data = google.visualization.arrayToDataTable(
+                candle_data
+                );
+
+                var options = {
+                  'title':'긍부정 지수 및 바이낸스 일봉차트',
+                  'width':1200,
+                  'height':500,
+                  legend:'right',
+        <!--          주 그래프 타입-->
+                  seriesType:'candlesticks',
+        <!--          서브 그래프 타입-->
+                  series:{
+                        1 : {type : 'line'},
+                        2 : {type : 'line'},
+                        3 : {type : 'line'},
+                        4 : {type : 'line'},
+                  },
+                  vAxis: {viewWindowMode:'explicit',
+                          viewWindow: {
+                                          max:bit_gg_dict.최대값,
+                                          min:bit_gg_dict.최소값
+                    }}
+
+                };
+                var chart = new google.visualization.ComboChart(document.getElementById('chart_div'));
+                chart.draw(data, options);
+              }
+              }
+        </script>
+</body>
+</html>
