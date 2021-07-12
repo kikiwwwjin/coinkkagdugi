@@ -1,0 +1,36 @@
+<table class="table table-striped table-sm", border = '1'>
+
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>coin</th>
+            <th>score</th>
+        </tr>
+    </thead>
+
+    <tbody>
+    {% for result1, result2 in result_list%}
+        <tr>
+            <td>{{ loop.index }}</td>
+            <td>{{ result1 }}</td>
+            <td>{{ result2 }}</td>
+<!--      <td>{{ eachstocks }}</td>-->
+        </tr>
+    {% endfor %}
+    </table>
+    </tbody>
+
+</table>
+
+<div class="table_entrances" style="overflow-x: auto;">
+    <table id = 'table'>
+            <thead></thead>
+            <tr></tr>
+    </table>
+</div>
+
+{{df_html}}
+
+{{ssibal}}
+
+{{df}}
