@@ -10,6 +10,10 @@
 # 요약 : 모델에 사용할 수 있는 변수는 범주형 변수가 아니고 연속형 변수여야 하는데 더미변수는 범주형 변수를 모델에 사용할 수 있는 연속형 변수스럽게 만들어주는 역할을 한다.
 
 
+# 더미 변수화는 크게 2가지 방법이 있음
+# pandas get_dummies vs sklearn LabelEncoder, OneHotEncoder => sklearn 패키지가 훨씬 성능이 좋음(처리 속도가 빠르다.)
+
+
 # 패키지
 import pandas as pd # 범주화 및 더미변수화
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder # 더미변수화
@@ -38,6 +42,11 @@ print(ec_matrix, '\n', ec_matrix.shape)
 ohe = OneHotEncoder(sparse=False)
 ohe_matrix = ohe.fit_transform(ec_matrix)
 print(ohe_matrix)
+
+# 더미 2차원 행렬 => 데이터 프레임화
+dummies_df = pd.DataFrame(ohe_matrix, columns=encoder.classes_)
+
+
 
 ##### 실습 ######
 # 실습 데이터 불러오기
@@ -77,10 +86,33 @@ print(df['v1_grade_quantile'])
 print(df['v31'].unique()) # unique 확인 ['A' 'B' '0' 'C']
 # 범주형 데이터는 모델의 학습 변수로 사용할 수 없다. 그래서 더미 변수화를 해주여야 사용할 수 있게 된다.
 dummies_df = pd.get_dummies(df['v31']) # 더미 변수를 생성
-df = pd.concat([df, dummies_df], axis=1) # 생성된 더미 변수를 원 데이터 뒤에 붙여준다.
-print(df) # 원 데이터 뒤에 프레임 뒤에 더미 변수가 생성된 것을 확인
+result_df = pd.concat([df, dummies_df], axis=1) # 생성된 더미 변수를 원 데이터 뒤에 붙여준다.
+print(result_df) # 원 데이터 뒤에 프레임 뒤에 더미 변수가 생성된 것을 확인
 
-### 실습 3)
+### 실습 3) sklearn의 LabelEncoder, OneHotEncoder 함수로 더미 변수화 하기
+le = LabelEncoder()
+labels = le.fit_transform(df['v31']) # 데이터 변량에 따른 라벨링
+lb_matrix = labels.reshape(-1, 1) # 2차원 행렬로 변환
+
+print(lb_matrix.shape)
+
+# 원핫인코더로 더미 행렬 생성
+ohe = OneHotEncoder(sparse=False)
+ohe_matrix = ohe.fit_transform(lb_matrix)
+
+# 행렬을 변수화
+dummies_df_2 = pd.DataFrame(data=ohe_matrix, columns=le.classes_) # 데이터 프레임화
+result_df = pd.concat([df, dummies_df_2], axis=1)
+
+
+
+
+
+
+
+
+
+
 
 
 
