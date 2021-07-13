@@ -4,7 +4,7 @@ import numpy as np
 import datetime
 app = Flask(__name__)
 
-# 경로 설정
+# 경로 설정 위치 고정 필요
 file_path = 'C:\\Users\\wai\\Desktop\\프로젝트\\암호화폐\\'
 # file_path = 'D:\\암호화폐\\'
 
