@@ -13,6 +13,7 @@
 # 패키지
 import pandas as pd # 범주화 및 더미변수화
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder # 더미변수화
+import numpy as np
 
 
 season = pd.DataFrame({'계절' : ['봄','여름','가을','겨울']})
@@ -39,10 +40,10 @@ ohe_matrix = ohe.fit_transform(ec_matrix)
 print(ohe_matrix)
 
 ##### 실습 ######
-### 실습 데이터 불러오기
+# 실습 데이터 불러오기
 df = pd.read_csv('C:\\Users\\wai\\Desktop\\프로젝트\\교육자료\\교육데이터\\BookExample.csv')
-df.dtypes
-# 과제 1) v1과 v2 변수를 범주화 하기
+
+# 실습 1) 'v1' 변수 범주화 하기
 v1_all_diff = df['v1'].max() - df['v1'].min() # v1 변수의 최대값 - 최소값(전체 구간)
 # v1 변수는 고객의 신용도를 나타내는 변수 입니다.
 # v1 변수(신용도)를 신용등급으로 범주화 하는 작업을 해보겠습니다. (등급은 10개 등급으로 나눔)
@@ -62,6 +63,7 @@ print(labels) # 구간 개수에 따라 등급을 라벨링
 # 데이터 프레임에 'v1_grade' 신용 등급(10개의 구간을 일정한 구간의 크기로 구분함)
 # 1등급 : 최소값 <= x <= 1.276, 2등급 : 1.276 < x <= 2.552 .....
 df['v1_grade'] = pd.cut(df['v1'], bins=10, labels=labels)
+print(df['v1_grade'] )
 
 # 데이터 프레임에 'v1_grade_quantile' 신용 등급(10개의 구간을 일정한 분위수로 구분함)
 # 변수의 변량에 따라서 분위수를 나누는 구간이 중복가능하기 때문에 duplicates 옵션에 'drop'을 해준다.
@@ -69,6 +71,16 @@ df['v1_grade'] = pd.cut(df['v1'], bins=10, labels=labels)
 df['v1_grade_quantile'] = pd.qcut(df['v1'], q=10, duplicates='drop', labels=False) # 7개의 구간으로 나누어졌다.
 # 0 등급부터 라벨링이 되기때문에 'v1_grade_quantile' 컬럼에 전체 적으로 +1을 해준다.
 df['v1_grade_quantile'] = df['v1_grade_quantile'] + 1
+print(df['v1_grade_quantile'])
+
+### 실습 2) 'v31'변수(범주형 변수) 더미 변수화 하기
+print(df['v31'].unique()) # unique 확인 ['A' 'B' '0' 'C']
+# 범주형 데이터는 모델의 학습 변수로 사용할 수 없다. 그래서 더미 변수화를 해주여야 사용할 수 있게 된다.
+dummies_df = pd.get_dummies(df['v31']) # 더미 변수를 생성
+df = pd.concat([df, dummies_df], axis=1) # 생성된 더미 변수를 원 데이터 뒤에 붙여준다.
+print(df) # 원 데이터 뒤에 프레임 뒤에 더미 변수가 생성된 것을 확인
+
+### 실습 3)
 
 
 
