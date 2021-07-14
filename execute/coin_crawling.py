@@ -43,9 +43,7 @@ import pyupbit
 #
 
 # 파일경로 설정
-file_path = 'C:\\Users\\wai\\Desktop\\프로젝트\\암호화폐\\'
-# file_path = 'D:\\암호화폐\\'
-
+file_path = os.path.dirname(os.path.abspath(os.curdir)) + '\\coinkkagdugi\\'
 
 
 #####################################################################

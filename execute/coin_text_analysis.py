@@ -66,8 +66,9 @@ from wordcloud import WordCloud, STOPWORDS
 
 # 1. 데이터 불러오기
 
-file_path = 'C:\\Users\\wai\\Desktop\\프로젝트\\암호화폐\\'
-# file_path = 'D:\\암호화폐\\'
+# file_path = 'C:\\Users\\wai\\Desktop\\프로젝트\\암호화폐\\'
+file_path = 'D:\\암호화폐\\'
+
 
 # 날짜 셋팅
 today_dt = datetime.datetime.today()  # 오늘 날짜(적재 날짜)
@@ -464,7 +465,9 @@ for dt in tqdm(anal_dt_list):
 
     wc = WordCloud(width=400,height=400,background_color='white',font_path='C:\\Windows\\Fonts\\H2SA1M.TTF')\
         .generate_from_frequencies(freq_dict)
-    wc.to_file('C:\\Users\\wai\\Anaconda3\\envs\\untitled\\암호화폐_텍스트마이닝\\static\\images\\wordcloud_'+dt.split(' ')[0].replace('-','')+'.jpg')
+    # image_path = 'C:\\Users\\wai\\Anaconda3\\envs\\untitled\\암호화폐_텍스트마이닝\\static\\images\\'
+    image_path = 'C:\\Users\\kjh\\Documents\\GitHub\\coinkkagdugi\\static\\images\\'
+    wc.to_file(image_path+'wordcloud_'+dt.split(' ')[0].replace('-','')+'.jpg')
 
 # 날짜에 대한 For문 종료
 
