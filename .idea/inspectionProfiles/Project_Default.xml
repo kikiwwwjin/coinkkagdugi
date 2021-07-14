@@ -1,0 +1,20 @@
+<component name="InspectionProjectProfileManager">
+  <profile version="1.0">
+    <option name="myName" value="Project Default" />
+    <inspection_tool class="PyUnresolvedReferencesInspection" enabled="true" level="WARNING" enabled_by_default="true">
+      <option name="ignoredIdentifiers">
+        <list>
+          <option value="jinhyung.데이콘.*" />
+          <option value="암호화폐_텍스트마이닝.app_js.bit_upbit_gg_dict" />
+          <option value="암호화폐_텍스트마이닝.app_js.bit_binance_dict" />
+          <option value="암호화폐_텍스트마이닝.app_js.bit_upbit_dict" />
+          <option value="암호화폐_텍스트마이닝.app_js.bit_binance_gg_dict" />
+          <option value="암호화폐_텍스트마이닝.execute.app_js.bit_binance_gg_dict" />
+          <option value="암호화폐_텍스트마이닝.execute.app_js.bit_binance_dict" />
+          <option value="암호화폐_텍스트마이닝.execute.app_js.bit_upbit_dict" />
+          <option value="암호화폐_텍스트마이닝.execute.app_js.*" />
+        </list>
+      </option>
+    </inspection_tool>
+  </profile>
+</component>
