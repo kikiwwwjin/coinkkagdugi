@@ -638,6 +638,7 @@ def binance_info_crawling(p_file_path, p_start_date, p_end_date):
     up = delta.copy()
     down = delta.copy()
 
+    # 상승폭 및 하락폭
     up[up < 0] = 0
     down[down > 0] = 0
 

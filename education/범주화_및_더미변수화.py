@@ -93,7 +93,6 @@ print(result_df) # 원 데이터 뒤에 프레임 뒤에 더미 변수가 생성
 le = LabelEncoder()
 labels = le.fit_transform(df['v31']) # 데이터 변량에 따른 라벨링
 lb_matrix = labels.reshape(-1, 1) # 2차원 행렬로 변환
-
 print(lb_matrix.shape)
 
 # 원핫인코더로 더미 행렬 생성
