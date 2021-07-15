@@ -67,8 +67,9 @@ from wordcloud import WordCloud, STOPWORDS
 # 1. 데이터 불러오기
 
 # file_path = 'C:\\Users\\wai\\Desktop\\프로젝트\\암호화폐\\'
-file_path = 'D:\\암호화폐\\'
-
+# file_path = 'D:\\암호화폐\\'
+# 파일경로 설정
+file_path = os.path.dirname(os.path.abspath(os.curdir)) + '\\'
 
 # 날짜 셋팅
 today_dt = datetime.datetime.today()  # 오늘 날짜(적재 날짜)
@@ -413,8 +414,13 @@ for dt in tqdm(anal_dt_list):
     score_prd_df = pd.DataFrame({'코인관련주어':prd_list, '스코어_긍정': score_result_dict['스코어_prd_긍정']
                                 , '스코어_부정': score_result_dict['스코어_prd_부정'], '등록시간': dt.split(' ')[0].replace('-', '')})
     score_prd_df['스코어_합계'] = score_prd_df['스코어_긍정'] - score_prd_df['스코어_부정']
+
+    # 코인 관련 데이터 업로드 path 설정 및 전날
+    coin_file_path = file_path + 'static\\coin_data\\'
+
+
     # 스코어 및 빈도수 데이터 적재
-    upload_fnm = file_path + 'score_' + today_dt + '.csv'
+    upload_fnm = coin_file_path + 'score_' + today_dt + '.csv'
     print('적재 파일명 :', upload_fnm)
     if os.path.isfile(upload_fnm) == False:
         print('스코어 데이터 미존재 => 파일생성 및 적재')
@@ -428,7 +434,7 @@ for dt in tqdm(anal_dt_list):
     # 코인 및 상품 매핑단어 데이터 적재
     score_dict_df = pd.DataFrame({'코인및상품명' : list(score_dict.keys()), '매핑단어' : list(score_dict.values())
                                  ,'등록시간' : dt.split(' ')[0].replace('-','')})
-    upload_fnm = file_path + '코인및상품_매핑단어_'+today_dt+'.csv'
+    upload_fnm = coin_file_path + '코인및상품_매핑단어_'+today_dt+'.csv'
     if os.path.isfile(upload_fnm) == False:
         print('코인및상품_매핑단어 데이터 미존재 => 파일생성 및 적재')
         score_dict_df.to_csv(upload_fnm, index=False, mode='w', encoding='cp949')
@@ -447,7 +453,7 @@ for dt in tqdm(anal_dt_list):
     freq_df = freq_df.sort_values(['COUNT'], ascending=False)
     freq_df['등록시간'] = dt.split(' ')[0].replace('-','')
     freq_df = freq_df.fillna(0) # 결측치는 빈도수 => 0 으로 채움
-    upload_fnm = file_path + '핵심단어_빈도수_' + today_dt + '.csv'
+    upload_fnm = coin_file_path + '핵심단어_빈도수_' + today_dt + '.csv'
     if os.path.isfile(upload_fnm) == False:
         print('핵심 단어별 빈도수 데이터 미존재 => 파일생성 및 적재')
         freq_df.to_csv(upload_fnm, index=False, mode='w', encoding='cp949')
@@ -456,18 +462,20 @@ for dt in tqdm(anal_dt_list):
         freq_df.to_csv(upload_fnm, index=False, mode='a', encoding='cp949', header=False)
     print('핵심 단어별 빈도수 데이터 적재 완료')
 
-    # 워드클라우드(일자별)
-    freq_dict = dict()
-    # for idx, noun in enumerate(freq_df['명사']):
-    #     freq_dict[noun] = idx+1
-    for noun, cnt in zip(freq_df['명사'], freq_df['COUNT']):
-        freq_dict[noun] = cnt
 
-    wc = WordCloud(width=400,height=400,background_color='white',font_path='C:\\Windows\\Fonts\\H2SA1M.TTF')\
-        .generate_from_frequencies(freq_dict)
-    # image_path = 'C:\\Users\\wai\\Anaconda3\\envs\\untitled\\암호화폐_텍스트마이닝\\static\\images\\'
-    image_path = 'C:\\Users\\kjh\\Documents\\GitHub\\coinkkagdugi\\static\\images\\'
-    wc.to_file(image_path+'wordcloud_'+dt.split(' ')[0].replace('-','')+'.jpg')
+    ### 워드클라우드(일자별)
+    if int(today_dt) - int(dt.split(' ')[0].replace('-','')) < 7 : # 7일 이내만 워드 클라우드 저장
+        freq_dict = dict()
+        # for idx, noun in enumerate(freq_df['명사']):
+        #     freq_dict[noun] = idx+1
+        for noun, cnt in zip(freq_df['명사'], freq_df['COUNT']):
+            freq_dict[noun] = cnt
+
+        wc = WordCloud(width=400,height=400,background_color='white',font_path='C:\\Windows\\Fonts\\H2SA1M.TTF')\
+            .generate_from_frequencies(freq_dict)
+        # image_path = 'C:\\Users\\wai\\Anaconda3\\envs\\untitled\\암호화폐_텍스트마이닝\\static\\images\\'
+        image_path = file_path + 'static\\images\\'
+        wc.to_file(image_path+'wordcloud_'+dt.split(' ')[0].replace('-','')+'.jpg')
 
 # 날짜에 대한 For문 종료
 
@@ -478,12 +486,3 @@ print('단어별 빈도수 데이터 적재 완료')
 
 
 ############################################################################################
-
-
-ages = [0,10,15,13,21,23,37,31,43,80,61,20,41,32,100]
-bins = [0,15,25,35,60,100]
-labels = ['어린이', '청년', '장년', '중년', '노년']
-cuts = pd.cut(ages, bins, right=True, include_lowest=True, labels=labels)
-
-season = pd.DataFrame({'계절' : ['봄','여름','가을','겨울']})
-season_dummies = pd.get_dummies(season['계절'])

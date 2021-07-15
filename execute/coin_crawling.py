@@ -43,8 +43,10 @@ import pyupbit
 #
 
 # 파일경로 설정
-file_path = os.path.dirname(os.path.abspath(os.curdir)) + '\\coinkkagdugi\\'
 
+# file_path = os.path.dirname(os.path.abspath(os.curdir)) + '\\coinkkagdugi\\'
+file_path = os.path.dirname(os.path.abspath(os.curdir)) + '\\'
+print(file_path)
 
 #####################################################################
 # 1. investing.com(암호화폐 뉴스 url) 크롤링 함수
@@ -52,7 +54,8 @@ file_path = os.path.dirname(os.path.abspath(os.curdir)) + '\\coinkkagdugi\\'
 
 def investing_crawling(p_file_path):
     main_url = 'https://kr.investing.com/news/cryptocurrency-news/'
-    driver = webdriver.Chrome(file_path + 'chromedriver.exe')
+    print(p_file_path + 'chromedriver.exe')
+    driver = webdriver.Chrome(p_file_path + 'chromedriver.exe')
     driver.get(main_url)  # url 접속
     time.sleep(0.5)
     # 페이지 소스 정보 => beautiful soup로 전환
@@ -93,10 +96,7 @@ def investing_crawling(p_file_path):
         print(page_no, '페이지 전체 건수 :', len(dt_list), ', 오늘 날짜 기사 건수 :', connect_cnt)
 
     # 크롤링 코드
-    today_dt = datetime.datetime.today().strftime(format='%Y%m%d')  # 오늘 날짜(적재 날짜)
-    upload_fnm = 'investing_crawling.csv'  # 적재 파일명
-    f_list = os.path.splitext(file_path + upload_fnm)
-    upload_fnm = f_list[0] + '_' + today_dt + f_list[1]
+
     for no in range(1, page_no + 1):  # 페이지 번호 기준
         # 딕셔너리 선언
         news_dict = dict()
@@ -159,6 +159,11 @@ def investing_crawling(p_file_path):
             print('기사 제목 :', title, '=> 크롤링 성공')
 
         # 딕셔너리 데이터 프레임에 적재
+        today_dt = datetime.datetime.today().strftime(format='%Y%m%d')  # 오늘 날짜(적재 날짜)
+        upload_fnm = 'investing_crawling.csv'  # 적재 파일명
+        f_list = os.path.splitext(p_file_path + 'static\\coin_data\\' + upload_fnm)
+        upload_fnm = f_list[0] + '_' + today_dt + f_list[1]
+
         df = pd.DataFrame(news_dict)
         if os.path.isfile(upload_fnm) == False:
             print('인베스팅 크롤링 파일 미존재 => 파일생성 및 적재')
@@ -174,9 +179,9 @@ def investing_crawling(p_file_path):
 investing_crawling(p_file_path=file_path)
 
 #####################################################################
-# 2. 네이버 뉴스 검색 "비트코인" 언론사 및 최신순(오늘날짜만)
+# 2. 네이버 뉴스 검색 "비트코인" 언론사 및 최신순 => 뉴스기사 수집 30일
 
-def naver_crawling(p_file_path, p_start_date):
+def naver_crawling(p_file_path):
     # 필요 변수 선언
     main_url = 'https://search.naver.com/search.naver?'
     # 해당 페이지에 기사가 있을때
@@ -190,7 +195,7 @@ def naver_crawling(p_file_path, p_start_date):
     ds = today_dt - datetime.timedelta(days=30) # 30일 전날짜
     ds = ds.strftime(format='%Y.%m.%d') # 크롤링 시작 시간
     upload_fnm = 'naver_crawling.csv'  # 적재 파일명
-    f_list = os.path.splitext(p_file_path + upload_fnm)
+    f_list = os.path.splitext(p_file_path + 'static\\coin_data\\' + upload_fnm)
     upload_fnm = f_list[0] + '_' + today_dt.strftime(format='%Y%m%d') + f_list[1]
     # 언론사 기준 for문
     for firm_nm, firm_cd in news_firm.items():
@@ -296,9 +301,7 @@ def naver_crawling(p_file_path, p_start_date):
 
     print('크롤링 종료')
     return
-# 크롤링 날짜 설정
-start_date = '20210608'
-naver_crawling(p_file_path=file_path, p_start_date=start_date)
+naver_crawling(p_file_path=file_path)
 
 ########################################################################
 # 3. 코인데스크 뉴스 => http://www.coindeskkorea.com/news/articleList.html?sc_day=1&sc_word=&sc_area=&view_type=sm&sc_order_by=E
@@ -400,7 +403,7 @@ def coindesk_crawling(p_file_path):
     today_dt = datetime.datetime.today()  # 오늘 날짜(적재 날짜)
     dt = today_dt.strftime(format='%Y.%m.%d')  # 현재 시각
     upload_fnm = 'coindesk_crawling.csv'  # 적재 파일명
-    f_list = os.path.splitext(p_file_path + upload_fnm)
+    f_list = os.path.splitext(p_file_path + 'static\\coin_data\\' + upload_fnm)
     upload_fnm = f_list[0] + '_' + today_dt.strftime(format='%Y%m%d') + f_list[1]
 
     if os.path.isfile(upload_fnm) == False:
@@ -539,7 +542,7 @@ def decenter_crawling(p_file_path):
     # 크롤링 코드
     today_dt = datetime.datetime.today().strftime(format='%Y%m%d')  # 오늘 날짜(적재 날짜)
     upload_fnm = 'decenter_crawling.csv'  # 적재 파일명
-    f_list = os.path.splitext(file_path + upload_fnm)
+    f_list = os.path.splitext(p_file_path + 'static\\coin_data\\' + upload_fnm)
     upload_fnm = f_list[0] + '_' + today_dt + f_list[1]
 
 
@@ -702,7 +705,7 @@ def binance_info_crawling(p_file_path, p_start_date, p_end_date):
     # 크롤링 코드
     today_dt = datetime.datetime.today().strftime(format='%Y%m%d')  # 오늘 날짜(적재 날짜)
     upload_fnm = 'bitcoin_info.csv'  # 적재 파일명
-    f_list = os.path.splitext(p_file_path + upload_fnm)
+    f_list = os.path.splitext(p_file_path + 'static\\coin_data\\' + upload_fnm)
     upload_fnm = f_list[0] + '_' + today_dt + f_list[1]
 
     # 딕셔너리 데이터 프레임에 적재
@@ -726,7 +729,7 @@ binance_info_crawling(p_file_path=file_path, p_start_date=bd, p_end_date=td)
 print('전체 크롤링 완료')
 
 ########################################################################
-# 6. 업비트 API를 활용한 데이터 수집
+# 6. 업비트 API를 활용한 데이터 수집 (100일 기준)
 ########################################################################
 def upbit_api(p_file_path, p_interval):
     print('#' * 80)
@@ -836,7 +839,7 @@ def upbit_api(p_file_path, p_interval):
     # 데이터 생성 및 적재
     today_dt = datetime.datetime.today().strftime(format='%Y%m%d')  # 오늘 날짜(적재 날짜)
     upload_fnm = 'bitcoin_info.csv'  # 적재 파일명
-    f_list = os.path.splitext(p_file_path + upload_fnm)
+    f_list = os.path.splitext(p_file_path + 'static\\coin_data\\' + upload_fnm)
     upload_fnm = f_list[0] + '_' + today_dt + f_list[1]
 
     # 딕셔너리 데이터 프레임에 적재
