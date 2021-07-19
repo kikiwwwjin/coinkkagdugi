@@ -50,60 +50,62 @@ dummies_df = pd.DataFrame(ohe_matrix, columns=encoder.classes_)
 
 ##### 실습 ######
 # 실습 데이터 불러오기
-df = pd.read_csv('C:\\Users\\wai\\Desktop\\프로젝트\\교육자료\\교육데이터\\BookExample.csv')
+df = pd.read_csv('C:\\Users\\wai\\Desktop\\프로젝트\\교육자료\\교육데이터\\kaggle\\test.csv')
+print(df)
 
-# 실습 1) 'v1' 변수 범주화 하기
-v1_all_diff = df.iloc[:,2].max() - df.iloc[:,2].min() # v1 변수의 최대값 - 최소값(전체 구간)
-# v1 변수는 고객의 신용도를 나타내는 변수 입니다.
-# v1 변수(신용도)를 신용등급으로 범주화 하는 작업을 해보겠습니다. (등급은 10개 등급으로 나눔)
-# v1 전체구간 10등분하기(1개 구간 차이)
-v1_diff = v1_all_diff/10 # 구간별 1.276
+# 실습 1) 'Age' 나이 변수 범주화 하기
 
-
-# 구간 라벨링 리스트 선언
+# 나이대 라벨링 리스트 선언
 labels = []
-# 구간 개수 : 10
-diff_n = 10
-for x in range(1, diff_n+1):
+# 구간 개수 : 9
+diff_n = 9
+for x in range(10, diff_n*10+10, 10):
     print(x)
-    labels.append(str(x) + '등급')
-print(labels) # 구간 개수에 따라 등급을 라벨링
+    labels.append(str(x) + '대')
+print(labels) # 구간 개수에 따라 나이대를 라벨링
 
-# 데이터 프레임에 'v1_grade' 신용 등급(10개의 구간을 일정한 구간의 크기로 구분함)
+# 데이터 프레임에 'Age_grade'  나이대 그룹핑(10개의 구간을 일정한 구간의 크기로 구분함)
 # 1등급 : 최소값 <= x <= 1.276, 2등급 : 1.276 < x <= 2.552 .....
-df['v1_grade'] = pd.cut(df.iloc[:,2], bins=10, labels=labels)
-print(df['v1_grade'] )
+df['Age_grade'] = pd.cut(df.loc[:,'Age'], bins=diff_n, labels=labels)
+print(df['Age_grade'] )
 
-# 데이터 프레임에 'v1_grade_quantile' 신용 등급(10개의 구간을 일정한 분위수로 구분함)
+# 데이터 프레임에 'Age_grade_quantile' 나이대 그룹핑(9개의 구간을 일정한 분위수로 구분함)
 # 변수의 변량에 따라서 분위수를 나누는 구간이 중복가능하기 때문에 duplicates 옵션에 'drop'을 해준다.
-# labels=False 옵션을 주어 낮은 구간부터 높은 구간순으로 0,1..6  +1씩 값이 증가하는 구간으로 세팅된다.
-df['v1_grade_quantile'] = pd.qcut(df.iloc[:,2], q=10, duplicates='drop', labels=False) # 7개의 구간으로 나누어졌다.
+# labels=False 옵션을 주어 낮은 구간부터 높은 구간순으로 0,1,..6  +1씩 값이 증가하는 구간으로 세팅된다.
+df['Age_grade_quantile'] = pd.qcut(df.loc[:,'Age'], q=diff_n, duplicates='drop', labels=False) # 7개의 구간으로 나누어졌다.
 # 0 등급부터 라벨링이 되기때문에 'v1_grade_quantile' 컬럼에 전체 적으로 +1을 해준다.
-df['v1_grade_quantile'] = df['v1_grade_quantile'] + 1
-print(df['v1_grade_quantile'])
+df['Age_grade_quantile'] = df['Age_grade_quantile'] + 1
+print(df['Age_grade_quantile'])
 
-### 실습 2) 'v31'변수(범주형 변수) 더미 변수화 하기
-print(df.iloc[:,-1].unique()) # unique 확인 ['A' 'B' '0' 'C']
+### 실습 2) 'Age_grade'(범주형 변수) 더미 변수화 하기
+# unique 값 확인 ['10대', '30대', '40대', '50대', '70대', '20대', '60대', '80대', '90대']
+print(df.loc[:,'Age_grade'].unique())
+
 # 범주형 데이터는 모델의 학습 변수로 사용할 수 없다. 그래서 더미 변수화를 해주여야 사용할 수 있게 된다.
-dummies_df = pd.get_dummies(df.iloc[:,-1]) # 더미 변수를 생성
+dummies_df = pd.get_dummies(df.loc[:,'Age_grade']) # 더미 변수를 생성
+# 더미 변수명 변경 => 'Age_1' ~ 'Age_9' 까지
+dummies_df.columns = list(map(lambda x : 'Age_' + x.replace('0대',''), list(dummies_df.columns)))
 result_df = pd.concat([df, dummies_df], axis=1) # 생성된 더미 변수를 원 데이터 뒤에 붙여준다.
 print(result_df) # 원 데이터 뒤에 프레임 뒤에 더미 변수가 생성된 것을 확인
 
 ### 실습 3) sklearn의 LabelEncoder, OneHotEncoder 함수로 더미 변수화 하기
 le = LabelEncoder()
-labels = le.fit_transform(df.iloc[:,-1]) # 데이터 변량에 따른 라벨링
+labels = le.fit_transform(df.loc[:,'Age_grade']) # 데이터 변량에 따른 라벨링
 lb_matrix = labels.reshape(-1, 1) # 2차원 행렬로 변환
-print(lb_matrix.shape)
+print('나이대 데이터 행렬 :', lb_matrix)
+print('나이대 데이터 행렬 사이즈 :', lb_matrix.shape)
+print('나이대 데이터 변량 unique :', le.classes_)
 
-# 원핫인코더로 더미 행렬 생성
+# 실습3) 원핫인코더로 더미 변수 생성
 ohe = OneHotEncoder(sparse=False)
 ohe_matrix = ohe.fit_transform(lb_matrix)
-
+list(le.classes_)
 # 행렬을 변수화
 dummies_df_2 = pd.DataFrame(data=ohe_matrix, columns=le.classes_) # 데이터 프레임화
-result_df = pd.concat([df, dummies_df_2], axis=1)
-
-
+# 더미 변수명 변경 => 'Age_1' ~ 'Age_9' 까지
+dummies_df_2.columns = list(map(lambda x : 'Age_' + x.replace('0대',''), list(dummies_df_2.columns)))
+result_df = pd.concat([df, dummies_df_2], axis=1) # 생성된 더미 변수를 원 데이터 옆에 붙여준다.
+print(result_df)
 
 
 
