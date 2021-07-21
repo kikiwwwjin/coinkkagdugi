@@ -6,7 +6,8 @@
     <title> 코인깍두기 </title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script>
     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
-    <script type="text/JavaScript" src="../static/jquery-1.7.min.js"></script>
+    <script type="text/JavaScript" src="http://code.jquery.com/jquery-1.7.min.js">
+    </script>
 
     <style type="text/css">
         @charset "utf-8";
@@ -46,7 +47,7 @@
 
 <body>
     <div class="chart-container2" style="position: relative; height:100vh; width:90vw">
-        <canvas id="test1" style="height:100vh; width:90vw"></canvas>
+        <canvas id="test1" style="height:150vh; width:90vw"></canvas>
         <canvas id="test2"></canvas>
         바이낸스 버튼
         <div id="graph_btn_1">
@@ -68,7 +69,7 @@
                 <button class="btn" id=btn_{{x}} value={{x}}>{{x}}</button>
             {% endfor %}
             <br><br>
-            <img id="img" src="../static/images/wordcloud_20210721.jpg" width="400", height="400"/>
+            <img id="img" src="../static/images/wordcloud_20210705.jpg" width="400", height="400"/>
 <!--            <img id="img" src="{{ url_for('static', filename='images/wordcloud_20210705.jpg')}}" width="400", height="400"/>-->
         </div>
     </div>

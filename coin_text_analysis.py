@@ -79,56 +79,17 @@ from wordcloud import WordCloud, STOPWORDS
 file_path = os.path.dirname(os.path.abspath(os.curdir)) + '\\coinkkagdugi\\' # 기본경로
 file_csv_path = os.path.dirname(os.path.abspath(os.curdir)) + '\\coinkkagdugi\\static\\coin_data\\' # 코인 관련 csv 경로
 file_image_path = os.path.dirname(os.path.abspath(os.curdir)) + '\\coinkkagdugi\\static\\images\\' # 코인 관련 image 경로
+print('Repository Path :', file_path)
+print('coin data Path :', file_csv_path)
+print('coin image Path :', file_image_path)
 
 # 날짜 셋팅
 today_dt = datetime.datetime.today()  # 오늘 날짜(적재 날짜)
 today_dt = today_dt.strftime(format='%Y%m%d')  # 현재 시각
-#
-# # 크롤링 데이터 리스트
-# f_list = ['coindesk', 'investing', 'naver', 'decenter']
-#
-# # 코인명 리스트
-# coin_nm_list = ['암호화폐', '가상화폐', '비트코인', '메이저','알트코인', '라이트코인', '도지코인', '폴카닷', '디카르고', '에이다'
-#                 , '마로', '페이코인', '썸씽', '이더리움 클래식', '이더리움', '비체인', '비트코인골드', '오브스', '모스코인'
-#                 , '펀디엑스', '카르다노', '리플', '이오스', '엠블', '골렘', '엘프', '스톰엑스', '세럼', '트론', '비트토렌트', '가스'
-#                 , '온톨로지가스', '던프로토콜', '스트라이크', '스텔라루멘', '스트라티스', '코모도']
-#
-# # 코인 긍부정 용어 셋팅
-# coin_jud_dict ={'긍정' : ['상승', '급등', '호재', '상승세', '반등', '투자', '투자유치', '강세장', '호황', '뛰어난', '성장', '오르고', '올랐다'
-#                     , '하드포크', '소프트포크', '업데이트', '떡상', '추매', '에어드랍', '메인넷', '↑', '친환경', '환경친화적', '긍정']
-#                 , '부정' : ['하락', '급락', '상폐', '상장폐지', '악재', '하락세', '떡락', '종결', '끝물', '추락', '약세', '대폭락', '내리고'
-#                     , '암흑기', '암흑', '↓', '환경파괴', '환경 파괴', '환경오염', '유의종목', '날벼락', '부정', '내렸다']} # 특정 비트코인에 한하여
-#
-# # 상품 및 암호화폐 관련 용어 리스트
-# prd_nm_list = ['비트코인 ETF', 'ETF', '비트코인 파생상품', '암호화폐 파생상품', '가상자산 파생상품', '법정화폐', '채굴장', '채굴업체'
-#                , '채굴']
-#
-# # 상품 긍부정 용어 셋팅
-# prd_jud_dict = {'긍정' : ['승인', '채택', '런칭']
-#                 , '부정' : ['연기', '철회', '폐지', '폐쇄', '사라지다', '사라진다', '금지', '연장']}
-#
-# # 금융 단어 용어 리스트
-# fin_nm_list = ['금리인상', '금리 인상', '인플레이션', '테이퍼링', 'CBDC', '디지털 원화', '디지털 화폐', '디지털 위안화', '디지털 달러'
-#                , '디지털원화', '디지털화폐', '디지털위안화', '디지털달러', '연준', '코인정리', '코인 정리', '업비트', '코인원'
-#                , '바이낸스', '골드만삭스', 'JP모건', '월가', '월 가', '증권거래위원회', '비트코인 상장지수펀드', '스테이킹']
-#
-# # 비트코인 관련 인물
-# bit_men_list = ['은성수', '홍남기', '일론 머스크', '일론', '제롬 파웰', '제롬 파월', '옐런']
-#
-# # 통폐합(동의어) 단어 딕셔너리
-# csd_dict = {
-#     '카르다노' : ['에이다'],
-#     '비트코인' : ['암호화폐', '가상화폐'],
-#     '제롬 파월' : ['제롬 파웰'],
-#     '일론 머스크' : ['일론'],
-#     '월가' : ['월 가'],
-#     '디지털 화폐' : ['디지털화폐'],
-#     '디지털 화폐' : ['디지털화폐'],
-#     '디지털 화폐' : ['디지털화폐'],
-#     '디지털 달러' : ['디지털달러'],
-# }
 
-import coin_word_dictionary
+# 코인 관련 명사 사전 가져오기
+from coin_word_dictionary import coin_noun_all
+f_list, coin_nm_list, coin_jud_dict, prd_nm_list, prd_jud_dict, fin_nm_list, bit_men_list, csd_dict = coin_noun_all()
 
 # 긍부정 단어 전체 리스트
 coin_jud_list = sum(list(coin_jud_dict.values()),[])
@@ -161,6 +122,7 @@ for f_nm in tqdm(f_list):
     # f_nm = 'decenter'
     # 크롤링 파일 불러오기
     try:
+        print(file_csv_path+f_nm+'_crawling_'+today_dt+'.csv')
         df = pd.read_csv(file_csv_path+f_nm+'_crawling_'+today_dt+'.csv', encoding='cp949')
         df['ref_site'] = f_nm
         all_df = pd.concat([all_df, df])
@@ -436,9 +398,8 @@ for dt in tqdm(anal_dt_list):
 
     mms = MinMaxScaler()
     mms_fit_array = np.array(score_coin_df[['스코어_긍정', '스코어_부정']]).flatten().reshape(-1,1)
-    mms.fit(mms_fit_array) # fitting 긍정, 부정 스코어
-    mms_array = mms.transform(score_coin_df[['스코어_긍정', '스코어_부정']])
-    mms_df = pd.DataFrame(data=mms_array, columns=['스코어_긍정_SCALING', '스코어_부정_SCALING'])
+    mms_array = mms.fit_transform(mms_fit_array) # fitting 긍정, 부정 스코
+    mms_df = pd.DataFrame(data=mms_array.reshape(-1,2), columns=['스코어_긍정_SCALING', '스코어_부정_SCALING'])
     score_coin_df = pd.concat([score_coin_df, mms_df], axis=1) # SCALING된 값 매핑 => 차트의 data로 사용
 
     score_prd_df = pd.DataFrame({'코인관련주어':prd_list, '스코어_긍정': score_result_dict['스코어_prd_긍정']

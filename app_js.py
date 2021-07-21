@@ -3,11 +3,11 @@ import pandas as pd
 import numpy as np
 import datetime
 import os
-from sklearn.preprocessing import MinMaxScaler, MaxAbsScaler
+from sklearn.preprocessing import MaxAbsScaler
 app = Flask(__name__)
 
 # 경로 설정 위치 고정 필요
-# 파일경로 설정(기본 경로)
+# 파일경로 설정(기본 경로)s
 # file_path = os.path.dirname(os.path.abspath(os.curdir)) + '\\' # 기본경로
 # file_csv_path = os.path.dirname(os.path.abspath(os.curdir)) + '\\static\\coin_data\\' #  코인 관련 csv 경로
 # file_image_path = os.path.dirname(os.path.abspath(os.curdir)) + '\\static\\images\\' # 코인 관련 image 경로
@@ -16,7 +16,9 @@ app = Flask(__name__)
 file_path = os.path.dirname(os.path.abspath(os.curdir)) + '\\coinkkagdugi\\' # 기본경로
 file_csv_path = os.path.dirname(os.path.abspath(os.curdir)) + '\\coinkkagdugi\\static\\coin_data\\' # 코인 관련 csv 경로
 file_image_path = os.path.dirname(os.path.abspath(os.curdir)) + '\\coinkkagdugi\\static\\images\\' # 코인 관련 image 경로
-
+print('Repository Path :', file_path)
+print('coin data Path :', file_csv_path)
+print('coin image Path :', file_image_path)
 # 시간 설정
 dt = datetime.datetime.today().strftime('%Y%m%d')
 # 워드클라우드 버튼 기간 설정(일주일전 ~ 현재)
