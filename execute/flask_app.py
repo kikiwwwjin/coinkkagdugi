@@ -2,44 +2,44 @@ from flask import Flask, render_template, request
 import pandas as pd
 import numpy as np
 import datetime
+import os
+from sklearn.preprocessing import MinMaxScaler, MaxAbsScaler
 app = Flask(__name__)
 
 # 경로 설정 위치 고정 필요
-file_path = 'C:\\Users\\wai\\Desktop\\프로젝트\\암호화폐\\'
-# file_path = 'D:\\암호화폐\\'
+# 파일경로 설정(기본 경로)
+# file_path = os.path.dirname(os.path.abspath(os.curdir)) + '\\' # 기본경로
+# file_csv_path = os.path.dirname(os.path.abspath(os.curdir)) + '\\static\\coin_data\\' #  코인 관련 csv 경로
+# file_image_path = os.path.dirname(os.path.abspath(os.curdir)) + '\\static\\images\\' # 코인 관련 image 경로
 
-# 시간 설정
-dt = datetime.datetime.today().strftime('%Y%m%d')
-# 워드클라우드 버튼 기간 설정(일주일전 ~ 현재)
-bf_dt = (datetime.datetime.today() - datetime.timedelta(days=7)).strftime('%Y%m%d')
+# 로컬 콘솔 실행 경로
+file_path = os.path.dirname(os.path.abspath(os.curdir)) + '/coinkkagdugi/coinkkagdugi/' # 기본경로
+file_csv_path = os.path.dirname(os.path.abspath(os.curdir)) + '/coinkkagdugi/coinkkagdugi/static/coin_data/' # 코인 관련 csv 경로
+file_image_path = os.path.dirname(os.path.abspath(os.curdir)) + '/coinkkagdugi/coinkkagdugi/static/images/' # 코인 관련 image 경로
+
+# 시간 설정(서버는 9시간 전 고려)
+dt = datetime.datetime.today() + datetime.timedelta(hours=9)
+dt = dt.strftime('%Y%m%d')
+# 워드클라우드 버튼 기간 설정(일주일전 ~ 현재, 서버는 9시간 전 고려)
+bf_dt = (datetime.datetime.today() - datetime.timedelta(days=6, hours=15)).strftime('%Y%m%d')
+
 btn_dt_index = pd.date_range(start=bf_dt,end=dt).map(lambda x : str(x).replace(' 00:00:00', ''))
 
 
 @app.route('/')
 def chart():
     # 데이터 임포트
-    f_nm = file_path + 'score_' + dt + '.csv'
+    f_nm = file_csv_path + 'score_' + dt + '.csv'
     df = pd.read_csv(f_nm, encoding='cp949', dtype='str')
 
     ### 1. 일자별 정보
     bit_df = df[df['코인명'] == '비트코인']  # 일자별 '비트코인' 추출
     bit_df = bit_df.astype({'스코어_합계' : 'int'})
-    # 그래프 도식화를 위한 MIN_MAX_SCAILING
-    max_sr = int(bit_df['스코어_합계'].max())
-    min_sr = int(bit_df['스코어_합계'].min())
 
-    if abs(max_sr) >= abs(min_sr):
-       max_scale_value = abs(max_sr)
-    else:
-       max_scale_value = abs(min_sr)
-    print('절대값 최고치 :', max_scale_value)
-
-    # 스코어 합계 => SCALING
-    if max_scale_value != 0:
-        bit_df['스코어_SCALING'] = bit_df['스코어_합계']/max_scale_value
-    else: # 양수, 음수 절대값 => 0 일때
-        pass
-        bit_df['스코어_SCALING'] = 0
+    # 스코어 합계 SCALING => MAXABSSCALER (-1 ~ 1)
+    mas = MaxAbsScaler()
+    mas_array = mas.fit_transform(np.array(bit_df['스코어_합계']).reshape(-1, 1))
+    bit_df['스코어_SCALING'] = mas_array
 
     bit_dict = dict({
         '등록시간': list(bit_df['등록시간']),
@@ -53,18 +53,14 @@ def chart():
     to_df = df[df['등록시간'] == dt] # 오늘 날짜 데이터 프레임 추출
     print(len(to_df))
     to_dict = dict({'코인명' : list(to_df['코인명']),
-         '스코어_긍정' : list(to_df['스코어_긍정']),
-         '스코어_부정' : list(to_df['스코어_부정']),
+         '스코어_긍정' : list(to_df['스코어_긍정_SCALING']),
+         '스코어_부정' : list(to_df['스코어_부정_SCALING']),
          '전체건수' : len(to_df['코인명'])
          }) # 코인 및 상품리스트
     print(to_dict)
 
-    ### 3. 비트코인(바이낸스&업비트) 정보 데이터 ###
-    # bit_info_df = pd.read_csv(file_path+'bitcoin_info_'+dt+'.csv',encoding='cp949',dtype={'등록시간':'str','종가':'float'
-    #             ,'오픈':'float','고가':'float','저가':'float','종가_SCALING':'float','오픈_SCALING':'float','거래량':'float'
-    #             ,'고가_SCALING':'float','저가_SCALING':'float','RSI_3':'float','RSI_7':'float','RSI_14':'float','출처':'str'})
-
-    bit_info_df = pd.read_csv(file_path+'bitcoin_info_'+dt+'.csv',encoding='cp949',dtype='str')
+    ## 3. 비트코인(바이낸스&업비트) 정보 데이터 ###
+    bit_info_df = pd.read_csv(file_csv_path+'bitcoin_info_'+dt+'.csv',encoding='cp949',dtype='str')
     # 컬럼 타입 정의
     col_type_dict = dict()
     for x in bit_info_df.columns:
@@ -128,13 +124,13 @@ def chart():
         }
         print('bit_'+firm+'_gg_dict :',globals()['bit_'+firm+'_gg_dict'])
 
-
+    # return to_dict, bit_dict, bit_binance_dict, bit_binance_gg_dict, bit_upbit_dict, bit_upbit_gg_dict
     return render_template('chart_js.html',to_dict=to_dict,bit_dict=bit_dict, btn_dt_index=btn_dt_index
-                           ,bit_binance_dict=bit_binance_dict, bit_binance_gg_dict=bit_binance_gg_dict
-                           ,bit_upbit_dict=bit_upbit_dict, bit_upbit_gg_dict=bit_upbit_gg_dict)
+                          ,bit_binance_dict=bit_binance_dict, bit_binance_gg_dict=bit_binance_gg_dict
+                          ,bit_upbit_dict=bit_upbit_dict, bit_upbit_gg_dict=bit_upbit_gg_dict)
 
 
-if __name__ == '__main__':
-   app.run(debug = True)
+
+
 
 
