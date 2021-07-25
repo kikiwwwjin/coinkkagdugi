@@ -145,8 +145,7 @@ def investing_crawling(p_file_path):
             soup = BeautifulSoup(html, 'html.parser')  # bs4 형태로 전환
             # 기사제목
             title = soup.find('h1', {'class': 'articleHeader'}).get_text()
-            title = re.sub('[\xa0\x82\xa1\xa2\xa3\xa4\x87\xb5\xd6\xe0\xe9\xa5\x80\x9a\xf3]', '', title)
-            title = re.sub('[\u2000-\u9999\n\t\r\xa0\ufeff]', '', title)
+            title = re.sub('[^A-Za-z0-9가-힣↑↓]', '', title)
             news_dict['title'].append(title)
             # 날짜 포맷 : 7 시간 전 (0000년 00월 00일 01:39) => YYYY-mm-dd %HH:%MM:%SS(년-월-일 시-분-초)
             reg = soup.find('div', {'class': 'contentSectionDetails'}).find('span').get_text()
@@ -157,8 +156,7 @@ def investing_crawling(p_file_path):
             content_info = soup.find('div', {'class': 'articlePage'}).find_all('p')
             content_list = list()
             for content in content_info:
-                ctt = re.sub('[\u2000-\u9999\n\t\r\xa0\ufeff]', '', content.get_text())
-                ctt = re.sub('[\xa0\x82\xa1\xa2\xa3\xa4\x87\xb5\xd6\xe0\xe9\xa5\x80\x9a\xf3]', '', ctt)
+                ctt = re.sub('[^A-Za-z0-9가-힣↑↓]', '', content.get_text())
                 print('기사내용 :', ctt)
                 content_list.append(ctt)
             news_dict['content'].append(content_list)
@@ -258,10 +256,7 @@ def naver_crawling(p_file_path):
                         article_html = BeautifulSoup(article_info.text, 'html.parser')
                         # 뉴스 기사 제목
                         title = article_html.find('div', {'class': 'article_tbx'}).find('h1').get_text()
-                        title = re.sub('[\u2000-\u9999\n\t\r\xa0\ufeff]', '', title)
-                        title = re.sub('[\xa0\x82\xa1\xa2\xa3\xa4\x87\xb5\xd6\xe0\xe9\xa5\x80\x9a\xf3]', '', title)
-
-
+                        title = re.sub('[^A-Za-z0-9가-힣↑↓]', '', title)
                         news_dict['title'].append(title)  # 기사 제목 담기
 
                         # 등록날짜
@@ -273,8 +268,8 @@ def naver_crawling(p_file_path):
 
                         # 기사내용
                         content_info = article_html.find('div', {'id': 'textBody'}).text
-                        content_info = re.sub('[\xa0\x82\xa1\xa2\xa3\xa4\x87\xb5\xd6\xe0\xe9\xa5\x80\x9a\xf3]', '', content_info)
-                        ctt_list = re.sub('[\u2000-\u9999\n\t\r\ufeff]', '', content_info).split('\n')
+                        content_info = re.sub('[^A-Za-z0-9가-힣↑↓\n]', '', content_info)
+                        ctt_list = content_info.split('\n')
                         ctt_list = [x for x in ctt_list if x != '']  # 줄바꿈 생략
                         news_dict['content'].append(ctt_list)
 
@@ -315,6 +310,7 @@ naver_crawling(p_file_path=file_path)
 # 코인데이스크 크롤링 함수
 
 def coindesk_crawling(p_file_path):
+    print('############### coindesk_crawling 함수 시작 ##############')
     # 필요 변수 선언
     main_url = 'http://www.coindeskkorea.com/news/articleList.html?sc_day=1&sc_word=&sc_area=&view_type=sm&sc_order_by=E'
     params = {'page': '1'}
@@ -373,8 +369,7 @@ def coindesk_crawling(p_file_path):
 
             # 기사 제목
             title = html_info.find('div', {'class': 'article-head-title'}).text
-            title = re.sub('[\u2000-\u9999\n\t\r\xa0\ufeff]', '', title)
-            title = re.sub('[\xa0\x82\xa1\xa2\xa3\xa4\x87\xb5\xd6\xe0\xe9\xa5\x80\x9a\xf3]', '', title)
+            title = re.sub('[^A-Za-z0-9가-힣↑↓]', '', title)
             news_dict['title'].append(title)
 
 
@@ -390,8 +385,7 @@ def coindesk_crawling(p_file_path):
             ctt_list = list()
             for p_info in html_info.find('div', {'id': 'article-view-content-div'}).find_all('p'):
                 print(p_info.text)
-                content = re.sub('[\u2000-\u9999\n\t\r\xa0\ufeff]', '', p_info.text)
-                content = re.sub('[\xa0\x82\xa1\xa2\xa3\xa4\x87\xb5\xd6\xe0\xe9\xa5\x80\x9a\xf3]', '', content)
+                content = re.sub('[^A-Za-z0-9가-힣↑↓]', '', p_info.text)
                 ctt_list.append(content)
 
             ctt_list = [x for x in ctt_list if x != '']
@@ -473,13 +467,11 @@ def decenter_crawling(p_file_path):
 
             # 기사 제목
             title = atc_info.find('h2').text
-            title = re.sub('[\u2000-\u9999\n\t\r\ufeff]', '', title)
-            title = re.sub('[\xa0\x82\xa1\xa2\xa3\xa4\x87\xb5\xd6\xe0\xe9\xa5\x80\x9a\xf3]', '', title)
+            title = re.sub('[^A-Za-z0-9가-힣↑↓]', '', title)
             news_dict['title'].append(title)
             # 기사 내용
             c_list = soup.find_all('br')
-            c_list = list(map(lambda x: re.sub('[\u2000-\u9999\n\t\r\xa0\ufeff\x82\xa1\xa2\xa3\xa4\x87\xb5\xd6\xe0'
-                                               '\xe9\xa5\x80\x9a\xf3]', '', x.text), c_list))
+            c_list = list(map(lambda x: re.sub('[^A-Za-z0-9가-힣↑↓]', '', x.text), c_list))
             c_list = [x for x in c_list if x != '']
             news_dict['content'].append(c_list)
             # 등록 일시
@@ -525,14 +517,12 @@ def decenter_crawling(p_file_path):
 
                 # 기사 제목
                 title = atc_info.find('h2').text
-                title = re.sub('[\u2000-\u9999\n\t\r\xa0\ufeff\xf3]', '', title)
-                title = re.sub('[\xa0\x82\xa1\xa2\xa3\xa4\x87\xb5\xd6\xe0\xe9\xa5\x80\x9a\xf3]', '', title)
+                title = re.sub('[^A-Za-z0-9가-힣↑↓]', '', title)
                 news_dict['title'].append(title)
 
                 # 기사 내용
                 c_list = soup.find_all('br')
-                c_list = list(map(lambda x: re.sub('[\u2000-\u9999\n\t\r\xa0\ufeff\xa0\x82\xa1\xa2\xa3\xa4\x87\xb5'
-                                                   '\xd6\xe0\xe9\xa5\x80\x9a\xf3]', '', x.text), c_list))
+                c_list = list(map(lambda x: re.sub('[^A-Za-z0-9가-힣↑↓]', '', x.text), c_list))
                 c_list = [x for x in c_list if x != '']
                 news_dict['content'].append(c_list)
                 print('기사 제목 :', title, '=> 크롤링 성공')
