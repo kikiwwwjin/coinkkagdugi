@@ -54,6 +54,9 @@ file_path = os.path.dirname(os.path.abspath(os.curdir)) + '\\coinkkagdugi\\' # �
 file_csv_path = os.path.dirname(os.path.abspath(os.curdir)) + '\\coinkkagdugi\\static\\coin_data\\' # 코인 관련 csv 경로
 file_image_path = os.path.dirname(os.path.abspath(os.curdir)) + '\\coinkkagdugi\\static\\images\\' # 코인 관련 image 경로
 
+print('기본 경로 :', file_path)
+print('CSV 파일 경로 :', file_csv_path)
+print('이미지 파일 경로 :', file_image_path)
 #####################################################################
 # 1. investing.com(암호화폐 뉴스 url) 크롤링 함수
 # bs4, request 함수로는 BAN 처리 당함 => 셀레니움만 가능
@@ -178,6 +181,8 @@ def investing_crawling(p_file_path):
         print('적재완료')
         print('#' * 80)
 
+    print('크롬드라이브 세션 닫기')
+    driver.close()
     print('investing.com 전체 기사 크롤링 완료')
     return
 investing_crawling(p_file_path=file_path)
@@ -554,6 +559,9 @@ def decenter_crawling(p_file_path):
     print('적재완료')
     print('#' * 80)
 
+    print('크롬드라이브 세션 닫기')
+    driver.close()
+
     print('decenter.com 전체 기사 크롤링 완료')
     return
 decenter_crawling(p_file_path=file_path)
@@ -713,6 +721,9 @@ def binance_info_crawling(p_file_path, p_start_date, p_end_date):
         bit_df.to_csv(upload_fnm, index=False, mode='a', header=False, encoding='cp949')
     print('적재완료')
     print('#' * 80)
+
+    print('크롬드라이브 세션 닫기')
+    driver.close()
 
     print('비트코인 정보 데이터 크롤링 및 적재 완료')
     return

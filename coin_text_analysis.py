@@ -89,6 +89,7 @@ today_dt = today_dt.strftime(format='%Y%m%d')  # 현재 시각
 
 # 코인 관련 명사 사전 가져오기
 from coin_word_dictionary import coin_noun_all
+
 f_list, coin_nm_list, coin_jud_dict, prd_nm_list, prd_jud_dict, fin_nm_list, bit_men_list, csd_dict = coin_noun_all()
 
 # 긍부정 단어 전체 리스트
@@ -492,7 +493,7 @@ print('단어별 빈도수 데이터 적재 완료')
 
 
 
-def making_index(p_file_csv_path):
+def making_index_result(p_file_csv_path):
     # 시간 설정(서버는 9시간 전 고려)
     dt = datetime.datetime.today().strftime('%Y%m%d')
 
@@ -500,11 +501,11 @@ def making_index(p_file_csv_path):
     bf_dt = datetime.datetime.today().strftime('%Y%m%d')
     btn_dt_index = pd.date_range(start=bf_dt, end=dt).map(lambda x: str(x).replace(' 00:00:00', '')) # 날짜리스트 생성 총 8일
 
-    # 데이터 임포트
+    # 코인별 긍부정 지수 데이터(30일 기준)
     f_nm = p_file_csv_path + 'score_' + dt + '.csv'
     df = pd.read_csv(f_nm, encoding='cp949', dtype='str')
 
-    ### 1. 일자별 정보
+    ### 1. 비트코인 긍부정 지수 데이터(30일 기준)
     bit_df = df[df['코인명'] == '비트코인']  # 일자별 '비트코인' 추출
     bit_df = bit_df.astype({'스코어_합계' : 'int'})
 
@@ -513,23 +514,14 @@ def making_index(p_file_csv_path):
     mas_array = mas.fit_transform(np.array(bit_df['스코어_합계']).reshape(-1, 1))
     bit_df['스코어_SCALING'] = mas_array
 
-    bit_dict = dict({
-        '등록시간': list(bit_df['등록시간']),
-        '스코어_SCALING': list(bit_df['스코어_SCALING']),
-        '스코어_합계': list(bit_df['스코어_합계']),
-        '전체건수': len(bit_df)
-    })  # 일자별 비트코인에 대한 긍부정 합계 스코어
-    print(bit_dict)
+    # 비트코인 긍부정 지수 데이터(30일 기준) 데이터 적재
+    bit_df.to_csv(p_file_csv_path + 'bitcoin_idx_result_'+dt+'.csv', index=False, encoding='cp949')
 
-    ### 2. 오늘 날짜 정보
-    to_df = df[df['등록시간'] == dt] # 오늘 날짜 데이터 프레임 추출
-    print(len(to_df))
-    to_dict = dict({'코인명' : list(to_df['코인명']),
-         '스코어_긍정' : list(to_df['스코어_긍정_SCALING']),
-         '스코어_부정' : list(to_df['스코어_부정_SCALING']),
-         '전체건수' : len(to_df['코인명'])
-         }) # 코인 및 상품리스트
-    print(to_dict)
+    ### 2. 코인별 긍부정 지수(오늘 기준)
+    to_df = df[df['등록시간'] == dt]  # 오늘 날짜 데이터 프레임 추출
+
+    # 코인별 긍부정 지수(오늘 기준) 데이터 적재
+    to_df.to_csv(p_file_csv_path + 'allcoin_idx_result_'+dt+'.csv', index=False, encoding='cp949')
 
     ## 3. 비트코인(바이낸스&업비트) 정보 데이터 ###
     bit_info_df = pd.read_csv(p_file_csv_path+'bitcoin_info_'+dt+'.csv',encoding='cp949',dtype='str')
@@ -589,7 +581,6 @@ def making_index(p_file_csv_path):
 
         globals()['bit_'+firm+'_gg_dict'] = {
             'candle_data' : candle_list,
-            'index_data' : index_list,
             '최대값': 1,
             '최소값': -1,
             '지표컬럼': col_list,
@@ -600,13 +591,16 @@ def making_index(p_file_csv_path):
     # 데이터 적재
     if os.path.isfile(upload_fnm) == False:
         print('핵심 단어별 빈도수 데이터 미존재 => 파일생성 및 적재')
-        freq_df.to_csv(upload_fnm, index=False, mode='w', encoding='cp949')
+        .to_csv(upload_fnm, index=False, mode='w', encoding='cp949')
     else:
         print('핵심 단어별 빈도수 데이터 미존재 => 적재')
-        freq_df.to_csv(upload_fnm, index=False, mode='a', encoding='cp949', header=False)
+        .to_csv(upload_fnm, index=False, mode='a', encoding='cp949', header=False)
     print('핵심 단어별 빈도수 데이터 적재 완료')
 
 
     return render_template('chart_js.html',to_dict=to_dict,bit_dict=bit_dict, btn_dt_index=btn_dt_index
                           ,bit_binance_dict=bit_binance_dict, bit_binance_gg_dict=bit_binance_gg_dict
                           ,bit_upbit_dict=bit_upbit_dict, bit_upbit_gg_dict=bit_upbit_gg_dict)
+
+# 각종 지표 산출 함수 실행
+making_index_result(p_file_csv_path=file_csv_path)
