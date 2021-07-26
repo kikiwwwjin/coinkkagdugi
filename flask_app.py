@@ -22,42 +22,51 @@ dt = datetime.datetime.today() + datetime.timedelta(hours=9)
 dt = dt.strftime('%Y%m%d')
 # 워드클라우드 버튼 기간 설정(일주일전 ~ 현재, 서버는 9시간 전 고려)
 bf_dt = (datetime.datetime.today() - datetime.timedelta(days=6, hours=15)).strftime('%Y%m%d')
-
 btn_dt_index = pd.date_range(start=bf_dt,end=dt).map(lambda x : str(x).replace(' 00:00:00', ''))
 
 
 @app.route('/')
 def chart():
-    # 데이터 임포트
-    f_nm = file_csv_path + 'score_' + dt + '.csv'
-    df = pd.read_csv(f_nm, encoding='cp949', dtype='str')
+    # 비트코인 긍부정 지수 데이터(30일 기준)
+    bit_df = pd.read_csv(file_csv_path + 'bitcoin_idx_result_'+dt+'.csv',encoding='cp949',dtype='str')
+    # 컬럼 타입 정의
+    col_type_dict = dict()
+    for x in bit_df.columns:
+        if x in ['코인명', '등록시간']:
+            col_type_dict[x] = 'str'
+        else:
+            col_type_dict[x] = 'float'
+    bit_df = bit_df.astype(col_type_dict) # 타입 변경
 
-    ### 1. 일자별 정보
-    bit_df = df[df['코인명'] == '비트코인']  # 일자별 '비트코인' 추출
-    bit_df = bit_df.astype({'스코어_합계' : 'int'})
-
-    # 스코어 합계 SCALING => MAXABSSCALER (-1 ~ 1)
-    mas = MaxAbsScaler()
-    mas_array = mas.fit_transform(np.array(bit_df['스코어_합계']).reshape(-1, 1))
-    bit_df['스코어_SCALING'] = mas_array
-
+    # 딕셔너리(JSON) 타입으로 변경
     bit_dict = dict({
         '등록시간': list(bit_df['등록시간']),
         '스코어_SCALING': list(bit_df['스코어_SCALING']),
         '스코어_합계': list(bit_df['스코어_합계']),
         '전체건수': len(bit_df)
     })  # 일자별 비트코인에 대한 긍부정 합계 스코어
-    print(bit_dict)
+    print('#'*150+'\n', '비트코인 긍부정 지수 딕셔너리 \n', bit_dict.keys(),'\n 건수 :',len(bit_df),'\n'+'#'*150)
 
-    ### 2. 오늘 날짜 정보
-    to_df = df[df['등록시간'] == dt] # 오늘 날짜 데이터 프레임 추출
-    print(len(to_df))
-    to_dict = dict({'코인명' : list(to_df['코인명']),
-         '스코어_긍정' : list(to_df['스코어_긍정_SCALING']),
-         '스코어_부정' : list(to_df['스코어_부정_SCALING']),
-         '전체건수' : len(to_df['코인명'])
-         }) # 코인 및 상품리스트
-    print(to_dict)
+    ### 2. 코인별 긍부정 지수(오늘 기준)
+    to_df = pd.read_csv(file_csv_path + 'allcoin_idx_result_'+dt+'.csv',encoding='cp949',dtype='str')
+    # 컬럼 타입 정의
+    col_type_dict = dict()
+    for x in to_df.columns:
+        if x in ['코인명', '등록시간']:
+            col_type_dict[x] = 'str'
+        else:
+            col_type_dict[x] = 'float'
+
+    # 딕셔너리(JSON) 타입으로 변경
+    to_dict = dict({'코인명': list(to_df['코인명']),
+                    '스코어_긍정': list(to_df['스코어_긍정_SCALING']),
+                    '스코어_부정': list(to_df['스코어_부정_SCALING']),
+                    '전체건수': len(to_df['코인명'])
+                    })  # 코인 및 상품리스트
+    print('#'*150+'\n', '코인별 긍부정 지수(오늘 기준) \n', to_dict.keys(),'\n 건수 :',len(to_df),'\n'+'#'*150)
+
+
+
 
     ## 3. 비트코인(바이낸스&업비트) 정보 데이터 ###
     bit_info_df = pd.read_csv(file_csv_path+'bitcoin_info_'+dt+'.csv',encoding='cp949',dtype='str')
