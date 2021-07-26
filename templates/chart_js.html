@@ -11,6 +11,14 @@
 
     <style type="text/css">
         @charset "utf-8";
+        body {
+            background: #202b38;
+            line-height: 1.6;
+<!--            max-width: 600px;-->
+            margin: 0 auto;
+        }
+
+
         .btn{
             position:relative;
             color: #5f6368;
@@ -46,30 +54,40 @@
 </head>
 
 <body>
-    <div class="chart-container2" style="position: relative; height:100vh; width:90vw">
-        <canvas id="test1" style="height:150vh; width:90vw"></canvas>
-        <canvas id="test2"></canvas>
-        바이낸스 버튼
+<!--    <div class="chart-container2" style="position: relative; height:100vh; width:90vw">-->
+    <canvas id="test1" width="1000" height="800"></canvas>
+    <br><br>
+    <canvas id="test2" width="1000" height="600"></canvas>
+    <br><br>
+    <div class="chart-container2">
+
+<!--        <canvas id="test2"></canvas>-->
+
+        <h1 style="color:#34e8ff;"><pre>                                      바이낸스 지표</pre></h1>
+
         <div id="graph_btn_1">
-            {% for x in bit_binance_gg_dict.지표컬럼%}
-                <button class="btn_idx" id=bi_btn_{{loop.index}} value={{loop.index}}>{{x}}</button>
-            {% endfor %}
-            <div id="chart_div"></div>
+        {% for x in bit_binance_gg_dict.지표컬럼%}
+            <button class="btn_idx" id=bi_btn_{{loop.index}} value={{loop.index}}>{{x}}</button>
+        {% endfor %}
+        <div id="chart_div"></div>
         </div>
-        업비트 버튼
+        <br><br>
+
+        <h1 style="color:#34e8ff;"><pre>                                      업비트 지표</pre></h1>
         <div id="graph_btn_2">
             {% for x in bit_upbit_gg_dict.지표컬럼%}
                 <button class="btn_idx" id=up_btn_{{loop.index}} value={{loop.index}}>{{x}}</button>
             {% endfor %}
             <div id="chart_div_2"></div>
         </div>
+        <br><br>
         <div id="word_btn">
 <!--        워드클라우드 날짜 버튼-->
             {% for x in btn_dt_index %}
                 <button class="btn" id=btn_{{x}} value={{x}}>{{x}}</button>
             {% endfor %}
             <br><br>
-            <img id="img" src="../static/images/wordcloud_20210705.jpg" width="400", height="400"/>
+            <img id="img" src="../static/images/wordcloud_{{today_dt}}.jpg" width="400", height="400"/>
 <!--            <img id="img" src="{{ url_for('static', filename='images/wordcloud_20210705.jpg')}}" width="400", height="400"/>-->
         </div>
     </div>
@@ -237,15 +255,14 @@
                 data: {
                         labels: to_dict.코인명,
                         datasets: [{ label: '긍정 지수',
-                                       backgroundColor: 'rgba(20, 150, 240, 0.5)'
-                                       , borderColor: 'rgba(20, 150, 240, 1.5)'
+                                       backgroundColor: 'rgba(0, 233, 214, 1)'
+                                       , borderColor: 'rgba(0, 233, 214, 0.46)'
     <!--                                        긍정 스코어 리스트 -->
                                                , data: to_dict.스코어_긍정 },
 
                                        { label: '부정 지수',
-                                       backgroundColor: 'rgba(255, 63, 41, 0.5)'
-
-                                       , borderColor: 'rgba(255, 63, 41, 1.5)'
+                                       backgroundColor: 'rgba(255, 112, 53, 1)'
+                                       , borderColor: 'rgba(255, 112, 53, 0.41)'
 
     <!--                                        긍정 스코어 리스트 -->
                                                , data: to_dict.스코어_부정 }
@@ -256,12 +273,12 @@
 
 <!--                    // Configuration options go here-->
                 options: { responsive : false
-                        , title: { display: true, text: '오늘의 코인별 긍정 및 부정 지표', fontSize: 30, fontColor: 'rgba(46, 49, 49, 1)' }
+                        , title: { display: true, text: '오늘의 코인별 긍정 및 부정 지수', fontSize: 30, fontColor: '#34e8ff'}
                         , indexAxis : 'y'
                         , cornerRadius: 20
-                        , legend: { labels: { fontColor: 'rgba(83, 51, 237, 1)', fontSize: 12 } }
-                        , scales: { xAxes: [{ ticks: {fontColor: 'rgba(27, 163, 156, 1)', fontSize: '10' } }]
-                        , yAxes: [{ ticks: { beginAtZero: true, fontColor: 'rgba(8, 12, 59, 1)', fontSize: '12' } }] } } });
+                        , legend: { labels: { fontColor: 'white', fontSize: 12 } }
+                        , scales: { xAxes: [{ ticks: {fontColor: '#1de282', fontSize: '12' } }]
+                        , yAxes: [{ ticks: { beginAtZero: true, fontColor: '#34e8ff', fontSize: '12' } }] } } });
         </script>
 <!-- 2.   Chart.js : 긍부정 지수 및 종가(일별) SCALING 차트 -->
         <script>
@@ -280,19 +297,20 @@
     <!--                                        스코어 합계 리스트 -->
                                                , data: bit_dict.스코어_SCALING },
                                     { label: '종가 지수',
-                                       backgroundColor: 'rgba(247, 141, 56, 0.6)'
-                                       , borderColor: 'rgba(247, 141, 56, 1.5)'
+                                       backgroundColor: 'rgba(247, 58, 73, 0.3)'
+                                       , borderColor: 'rgba(247, 58, 73, 1.5)'
     <!--                                        긍정 스코어 리스트 -->
                                                , data: bit_info_dict.종가_SCALING }
 
                                    ]
                        },
 <!--                    // Configuration options go here-->
-                options: { title: { display: true, text: '일별로 보는 비트코인에 대한 긍부정 지수'
-                        , fontSize: 30, fontColor: 'rgba(46, 49, 49, 1)' }
-                        , legend: { labels: { fontColor: 'rgba(83, 51, 237, 1)', fontSize: 10 } }
-                        , scales: { xAxes: [{ ticks: { fontColor: 'rgba(27, 163, 156, 1)', fontSize: '10' } }]
-                        , yAxes: [{ ticks: { beginAtZero: true, fontColor: 'rgba(246, 36, 89, 1)', fontSize: '15' } }] } } });
+                options: {  responsive : false
+                        , title: { display: true, text: '일별로 보는 비트코인에 대한 긍부정 지수'
+                        , fontSize: 30, fontColor: '#34e8ff' }
+                        , legend: { labels: { fontColor: 'white', fontSize: 10 } }
+                        , scales: { xAxes: [{ ticks: { fontColor: '#1de282', fontSize: '10' } }]
+                        , yAxes: [{ ticks: { beginAtZero: true, fontColor: '#34e8ff', fontSize: '15' } }] } } });
         </script>
 <!-- 3.   구글 차트 : 긍부정 지수 및 바이낸스 일봉 차트 -->
         <script type="text/javascript">
@@ -315,6 +333,10 @@
                   'title':'긍부정 지수 '+content,
                   'width':1200,
                   'height':500,
+                  hAxis:{
+                    textStyle:{color : '#1de282'}
+                  },
+                  backgroundColor:'#202b38',
                   legend:'right',
         <!--          주 그래프 타입-->
                   seriesType:'candlesticks',
@@ -334,7 +356,9 @@
                           viewWindow: {
                                           max : 1,
                                           min : -1
-                    }}
+                    },
+                    textStyle:{color : '#34e8ff'}
+                    }
 
                 };
                 var chart = new google.visualization.ComboChart(document.getElementById(chart_div));

@@ -13,21 +13,31 @@ app = Flask(__name__)
 # file_image_path = os.path.dirname(os.path.abspath(os.curdir)) + '\\static\\images\\' # 코인 관련 image 경로
 
 # 로컬 콘솔 실행 경로
-file_path = os.path.dirname(os.path.abspath(os.curdir)) + '/coinkkagdugi/coinkkagdugi/' # 기본경로
-file_csv_path = os.path.dirname(os.path.abspath(os.curdir)) + '/coinkkagdugi/coinkkagdugi/static/coin_data/' # 코인 관련 csv 경로
-file_image_path = os.path.dirname(os.path.abspath(os.curdir)) + '/coinkkagdugi/coinkkagdugi/static/images/' # 코인 관련 image 경로
+# file_path = os.path.dirname(os.path.abspath(os.curdir)) + '/coinkkagdugi/coinkkagdugi/' # 기본경로
+# file_csv_path = os.path.dirname(os.path.abspath(os.curdir)) + '/coinkkagdugi/coinkkagdugi/static/coin_data/' # 코인 관련 csv 경로
+# file_image_path = os.path.dirname(os.path.abspath(os.curdir)) + '/coinkkagdugi/coinkkagdugi/static/images/' # 코인 관련 image 경로
+file_path = os.path.dirname(os.path.abspath(os.curdir)) + '/coinkkagdugi/' # 기본경로
+file_csv_path = os.path.dirname(os.path.abspath(os.curdir)) + '/coinkkagdugi/static/coin_data/' # 코인 관련 csv 경로
+file_image_path = os.path.dirname(os.path.abspath(os.curdir)) + '/coinkkagdugi/static/images/' # 코인 관련 image 경로
+
+
 
 # 시간 설정(서버는 9시간 전 고려)
-dt = datetime.datetime.today() + datetime.timedelta(hours=9)
+# dt = datetime.datetime.today() + datetime.timedelta(hours=9)
+# dt = dt.strftime('%Y%m%d')
+# # 워드클라우드 버튼 기간 설정(일주일전 ~ 현재, 서버는 9시간 전 고려)
+# bf_dt = (datetime.datetime.today() - datetime.timedelta(days=6, hours=15)).strftime('%Y%m%d')
+# btn_dt_index = pd.date_range(start=bf_dt,end=dt).map(lambda x : str(x).replace(' 00:00:00', ''))
+dt = datetime.datetime.today()
 dt = dt.strftime('%Y%m%d')
-# 워드클라우드 버튼 기간 설정(일주일전 ~ 현재, 서버는 9시간 전 고려)
-bf_dt = (datetime.datetime.today() - datetime.timedelta(days=6, hours=15)).strftime('%Y%m%d')
-btn_dt_index = pd.date_range(start=bf_dt,end=dt).map(lambda x : str(x).replace(' 00:00:00', ''))
 
+# 워드클라우드 버튼 기간 설정(일주일전 ~ 현재, 서버는 9시간 전 고려)
+bf_dt = (datetime.datetime.today() - datetime.timedelta(days=7)).strftime('%Y%m%d')
+btn_dt_index = pd.date_range(start=bf_dt,end=dt).map(lambda x : str(x).replace(' 00:00:00', ''))
 
 @app.route('/')
 def chart():
-    # 비트코인 긍부정 지수 데이터(30일 기준)
+    ### 1. 비트코인 긍부정 지수 데이터(30일 기준)
     bit_df = pd.read_csv(file_csv_path + 'bitcoin_idx_result_'+dt+'.csv',encoding='cp949',dtype='str')
     # 컬럼 타입 정의
     col_type_dict = dict()
@@ -65,11 +75,8 @@ def chart():
                     })  # 코인 및 상품리스트
     print('#'*150+'\n', '코인별 긍부정 지수(오늘 기준) \n', to_dict.keys(),'\n 건수 :',len(to_df),'\n'+'#'*150)
 
-
-
-
-    ## 3. 비트코인(바이낸스&업비트) 정보 데이터 ###
-    bit_info_df = pd.read_csv(file_csv_path+'bitcoin_info_'+dt+'.csv',encoding='cp949',dtype='str')
+    ### 3. 비트코인(바이낸스&업비트) 정보 데이터 ###
+    bit_info_df = pd.read_csv(file_csv_path+'bitcoin_price_idx_result_'+dt+'.csv',encoding='cp949',dtype='str')
     # 컬럼 타입 정의
     col_type_dict = dict()
     for x in bit_info_df.columns:
@@ -80,10 +87,7 @@ def chart():
 
     bit_info_df = bit_info_df.astype(col_type_dict) # 타입 변경
 
-    # 스코어 긍부정 지수 merge
-    bit_info_df = pd.merge(bit_info_df, bit_df[['등록시간','스코어_SCALING']], on=['등록시간'], how='left')
-
-    # for문 출처에 따른 구분
+    # for문 출처 binance, upbit 에 따른 구분
     coin_firm = ['binance', 'upbit'] # 출처 구분
     for firm in coin_firm:
         # 출처에 따른 데이터 추출
@@ -92,7 +96,11 @@ def chart():
         # 컬럼 재배열 후 리스트 생성
         gg_chart_df = bit_firm_df[gg_col_list]
         col_list = list(gg_chart_df.columns)[:5] # 5열까지 : 등록시간,저가_SCALING,오픈_SCALING,종가_SCALING,고가_SCALING
-        candle_list = [col_list]
+        candle_list = ['일봉차트' if x == '저가_SCALING' else x for x in col_list]
+        candle_list = [candle_list]
+        # 구글 차트에 저가_SCALING 으로 표현되는 legend(차례) 변경
+
+
         # google chart 입력 순서(저가, 시가, 종가, 고가) => 양봉차트를 위한 데이터와 날짜 컬럼
         candle_list.extend(np.array(bit_firm_df[col_list]).tolist())
         print('candle_list : ', candle_list)
@@ -122,7 +130,6 @@ def chart():
                             '전체건수' : len(bit_firm_df),
 
         })
-        print('bit_'+firm+'_dict : ', globals()['bit_'+firm+'_dict'])
 
         globals()['bit_'+firm+'_gg_dict'] = {
             'candle_data' : candle_list,
@@ -131,14 +138,17 @@ def chart():
             '최소값': -1,
             '지표컬럼': col_list,
         }
-        print('bit_'+firm+'_gg_dict :',globals()['bit_'+firm+'_gg_dict'])
+
+        print('#' * 150 + '\n', '코인별 긍부정 지수(오늘 기준) \n', globals()['bit_'+firm+'_dict'].keys(), '\n 건수 :', len(globals()['bit_'+firm+'_dict']), '\n' + '#' * 150)
+        print('#' * 150 + '\n', '코인별 긍부정 지수(오늘 기준) \n', globals()['bit_'+firm+'_gg_dict'].keys(), '\n 건수 :', len(globals()['bit_'+firm+'_gg_dict']), '\n' + '#' * 150)
 
     # return to_dict, bit_dict, bit_binance_dict, bit_binance_gg_dict, bit_upbit_dict, bit_upbit_gg_dict
-    return render_template('chart_js.html',to_dict=to_dict,bit_dict=bit_dict, btn_dt_index=btn_dt_index
+    return render_template('chart_js.html',to_dict=to_dict,bit_dict=bit_dict, btn_dt_index=btn_dt_index, today_dt=dt
                           ,bit_binance_dict=bit_binance_dict, bit_binance_gg_dict=bit_binance_gg_dict
                           ,bit_upbit_dict=bit_upbit_dict, bit_upbit_gg_dict=bit_upbit_gg_dict)
 
-
+if __name__=='__main__':
+    app.run()
 
 
 
