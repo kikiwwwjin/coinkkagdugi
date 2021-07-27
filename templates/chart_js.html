@@ -49,6 +49,8 @@
 
     </style>
 
+<!--    오늘 날짜 -->
+    <h1 style="color:#34e8ff;"> {{today_dt}} 기준 </h1>
 <!--    <script type="text/javascript" charset="utf-8" src="js/Chart.min.js"></script>-->
 <!--    <script type="text/javascript" charset="utf-8" src="js/Chart.roundedBarCharts.min.js"></script>-->
 </head>
@@ -58,6 +60,8 @@
     <canvas id="test1" width="1000" height="800"></canvas>
     <br><br>
     <canvas id="test2" width="1000" height="600"></canvas>
+    <br><br>
+    <canvas id="test3" width="1000" height="600"></canvas>
     <br><br>
     <div class="chart-container2">
 
@@ -280,11 +284,44 @@
                         , scales: { xAxes: [{ ticks: {fontColor: '#1de282', fontSize: '12' } }]
                         , yAxes: [{ ticks: { beginAtZero: true, fontColor: '#34e8ff', fontSize: '12' } }] } } });
         </script>
+<!-- 2.   Chart.js : 주간 코인별 점유율 차트 -->
+        <script>
+            var freq_dict = {{freq_dict|tojson}};
+            var ctx = document.getElementById('test2').getContext('2d');
+            var chart = new Chart(ctx, {
+<!--                // The type of chart we want to create-->
+                type: 'horizontalBar',
+<!--                // The data for our dataset-->
+                data: {
+                        labels: freq_dict.코인명,
+                        datasets: [{ label: '점유율',
+                                       backgroundColor: 'rgba(0, 233, 214, 1)'
+                                       , borderColor: 'rgba(0, 233, 214, 0.46)'
+    <!--                                        긍정 스코어 리스트 -->
+                                               , data: freq_dict.점유율 },
+
+
+                                   ]
+                       },
+
+
+
+<!--                    // Configuration options go here-->
+                options: { responsive : false
+                        , title: { display: true, text: '주간 알트코인 점유율', fontSize: 30, fontColor: '#34e8ff'}
+                        , indexAxis : 'y'
+                        , cornerRadius: 20
+                        , legend: { labels: { fontColor: 'white', fontSize: 12 } }
+                        , scales: { xAxes: [{ ticks: {fontColor: '#1de282', fontSize: '12' } }]
+                        , yAxes: [{ ticks: { beginAtZero: true, fontColor: '#34e8ff', fontSize: '12' } }] } } });
+        </script>
+
+
 <!-- 2.   Chart.js : 긍부정 지수 및 종가(일별) SCALING 차트 -->
         <script>
             var bit_dict = {{bit_dict|tojson}};
             var bit_info_dict = {{bit_binance_dict|tojson}};
-            var ctx = document.getElementById('test2').getContext('2d');
+            var ctx = document.getElementById('test3').getContext('2d');
             var chart = new Chart(ctx, {
 <!--                // The type of chart we want to create-->
                 type: 'line',
