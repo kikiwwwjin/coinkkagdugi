@@ -89,8 +89,8 @@ today_dt = today_dt.strftime(format='%Y%m%d')  # 현재 시각
 
 # 코인 관련 명사 사전 가져오기
 from coin_word_dictionary import coin_noun_all
-
 f_list, coin_nm_list, coin_jud_dict, prd_nm_list, prd_jud_dict, fin_nm_list, bit_men_list, csd_dict = coin_noun_all()
+
 
 # 긍부정 단어 전체 리스트
 coin_jud_list = sum(list(coin_jud_dict.values()),[])
@@ -167,7 +167,7 @@ all_df, all_passing_words = article_preprocessing(p_f_list=f_list, p_dt=today_dt
 def document_similarity(p_all_df, p_all_passing_words):
     tfidf_vec = TfidfVectorizer()
     tfidf_fit = tfidf_vec.fit(sum(p_all_passing_words, []))
-    len(tfidf_fit.vocabulary_)
+
     all_word_dict = dict()
     for k, v in sorted(tfidf_fit.vocabulary_.items()):
         # print(k, v)
@@ -237,7 +237,7 @@ def text_analysis(p_all_df,p_all_word_list,p_anal_dt_list,coin_nm_list,prd_nm_li
 
         # 코인에 따른 긍부정 단어 딕셔너리 선언
         score_dict = dict()
-        # 코인명 => key 정의
+        # 코인명 + 상품명 => key 정의
         for nm in coin_nm_list + prd_nm_list:
             score_dict[nm] = list()
 
@@ -367,7 +367,7 @@ def text_analysis(p_all_df,p_all_word_list,p_anal_dt_list,coin_nm_list,prd_nm_li
                     # 삭제
                     score_dict.pop(v)
             except:
-                print('key :',k,'value :',v,'딕셔너리에 존재하는 먼저 확인')
+                print('key :',k,'value :',v,'먼저 딕셔너리에 존재하는지 확인')
 
         # 코인에 대한 긍부정 스코어
         score_result_dict = dict()
@@ -451,8 +451,6 @@ def text_analysis(p_all_df,p_all_word_list,p_anal_dt_list,coin_nm_list,prd_nm_li
                 freq_df.loc[(freq_df['명사']==k), 'COUNT'] = sum_value # 빈도수 합계 산출
                 # 동의어 컬럼 제거
                 freq_df = freq_df[~freq_df['명사'].isin(v)]
-
-
 
         freq_df = freq_df.sort_values(['COUNT'], ascending=False)
         freq_df['등록시간'] = dt.split(' ')[0].replace('-','')

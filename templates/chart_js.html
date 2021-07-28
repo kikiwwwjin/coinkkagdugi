@@ -57,6 +57,15 @@
 
 <body>
 <!--    <div class="chart-container2" style="position: relative; height:100vh; width:90vw">-->
+    <div id="coin_men">
+    {% for key, value in men_dict.items() %}
+        dfd
+        <img id="coin_men_img" src="../static/images/{{key}}.jpg" width="100", height="100"/>
+        ../static/images/{{name}}.jpg
+        {{key}} {{value}}
+    {% endfor %}
+    </div>
+
     <canvas id="test1" width="1000" height="800"></canvas>
     <br><br>
     <canvas id="test2" width="1000" height="600"></canvas>
@@ -286,19 +295,19 @@
         </script>
 <!-- 2.   Chart.js : 주간 코인별 점유율 차트 -->
         <script>
-            var freq_dict = {{freq_dict|tojson}};
+            var alt_dict = {{alt_dict|tojson}};
             var ctx = document.getElementById('test2').getContext('2d');
             var chart = new Chart(ctx, {
 <!--                // The type of chart we want to create-->
                 type: 'horizontalBar',
 <!--                // The data for our dataset-->
                 data: {
-                        labels: freq_dict.코인명,
+                        labels: alt_dict.코인명,
                         datasets: [{ label: '점유율',
                                        backgroundColor: 'rgba(0, 233, 214, 1)'
                                        , borderColor: 'rgba(0, 233, 214, 0.46)'
     <!--                                        긍정 스코어 리스트 -->
-                                               , data: freq_dict.점유율 },
+                                               , data: alt_dict.점유율 },
 
 
                                    ]

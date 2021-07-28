@@ -20,7 +20,9 @@ file_path = os.path.dirname(os.path.abspath(os.curdir)) + '/coinkkagdugi/' # 기
 file_csv_path = os.path.dirname(os.path.abspath(os.curdir)) + '/coinkkagdugi/static/coin_data/' # 코인 관련 csv 경로
 file_image_path = os.path.dirname(os.path.abspath(os.curdir)) + '/coinkkagdugi/static/images/' # 코인 관련 image 경로
 
-
+# 비트코인 관련 단어 사전 리스트 가져오기
+from coin_word_dictionary import coin_noun_all
+f_list, coin_nm_list, coin_jud_dict, prd_nm_list, prd_jud_dict, fin_nm_list, bit_men_list, csd_dict = coin_noun_all()
 
 # 시간 설정(서버는 9시간 전 고려)
 # dt = datetime.datetime.today() + datetime.timedelta(hours=9)
@@ -79,7 +81,7 @@ def chart():
                     })  # 코인 및 상품리스트
     print('#'*150+'\n', '코인별 긍부정 지수(오늘 기준) \n', to_dict.keys(),'\n 건수 :',len(to_df),'\n'+'#'*150)
 
-    ### 코인별 점유율 지수 데이터(오늘 기준)
+    ### 3. 코인별 점유율 지수 데이터(주간 기준)
     freq_df = pd.read_csv(file_csv_path + '핵심단어_빈도수_' + dt + '.csv', encoding='cp949', dtype='str')
     # 컬럼 타입 정의
     col_type_dict = dict()
@@ -90,25 +92,41 @@ def chart():
             col_type_dict[x] = 'float'
     freq_df = freq_df.astype(col_type_dict)  # 타입 변경
     coin_list = list(to_df['코인명'].unique())  # 코인리스트 추출
-    freq_df = freq_df[freq_df['명사'].isin(coin_list)] # 코인리스트에 대한 빈도수 데이터 프레임 추출
+    alt_coin_df = freq_df[freq_df['명사'].isin(coin_list)] # 코인리스트에 대한 빈도수 데이터 프레임 추출
     # 주간(7일) 기준 및 알트코인 추출
-    freq_df = freq_df[(freq_df['등록시간'] > bf_dt) & (freq_df['명사'] != '비트코인')]
+    alt_coin_df = alt_coin_df[(alt_coin_df['등록시간'] > bf_dt) & (alt_coin_df['명사'] != '비트코인')]
 
     # 주간 알트 코인별 빈도수 합계 => 상위 7개 코인 추출
-    freq_df = freq_df.groupby(['명사']).sum().reset_index().sort_values(['COUNT'], ascending=False)
-    freq_df = freq_df.iloc[:7]
-    freq_df['점유율'] = freq_df['COUNT']/freq_df['COUNT'].sum()
+    alt_coin_df = alt_coin_df.groupby(['명사']).sum().reset_index().sort_values(['COUNT'], ascending=False)
+    alt_coin_df = alt_coin_df.iloc[:7]
+    alt_coin_df['점유율'] = alt_coin_df['COUNT']/alt_coin_df['COUNT'].sum()
 
     # 딕셔너리(JSON) 타입으로 변경
-    freq_dict = dict({'코인명': list(freq_df['명사']),
-                    '빈도수': list(freq_df['COUNT']),
-                    '점유율': list(freq_df['점유율']),
-                    '전체건수': len(freq_df['명사'])
+    alt_dict = dict({'코인명': list(alt_coin_df['명사']),
+                    '빈도수': list(alt_coin_df['COUNT']),
+                    '점유율': list(alt_coin_df['점유율']),
+                    '전체건수': len(alt_coin_df['명사'])
                     })  # 코인 및 상품리스트
-    print('#' * 150 + '\n', '코인별 점유율 지수 데이터(주간 기준) \n', freq_dict.keys(), '\n 건수 :', len(freq_dict['코인명']), '\n' + '#' * 150)
+    print('#' * 150 + '\n', '코인별 점유율 지수 데이터(주간 기준) \n', alt_dict.keys(), '\n 건수 :', len(alt_dict['코인명']),
+          '\n' + '#' * 150)
+
+    ### 4. 코인 관련 인물별 점유율 지수 데이터(주간 기준) ###
+    men_df = freq_df[freq_df['명사'].isin(bit_men_list) & (freq_df['등록시간'] > bf_dt)]  # 주간(7일) 기준 및 인물 추출
+
+    # 주간 인물별 빈도수 합계 => 상위 3명 추출
+    men_df = men_df.groupby(['명사']).sum().reset_index().sort_values(['COUNT'], ascending=False)
+    men_df = men_df.iloc[:3]
+    men_df['점유율'] = men_df['COUNT'] / men_df['COUNT'].sum()
+    # 딕셔너리(JSON) 타입으로 변경
+    men_dict = dict()
+    for name, ocp_rt in zip(men_df['명사'], men_df['점유율']):
+        men_dict[name] = ocp_rt
+
+    print('#' * 150 + '\n', '코인 관련 인물별 점유율 지수 데이터(주간 기준) \n', men_dict.keys(), '\n 건수 :', len(men_dict),
+          '\n' + '#' * 150)
 
 
-    ### 3. 비트코인(바이낸스&업비트) 정보 데이터 ###
+    ### 5. 비트코인(바이낸스&업비트) 정보 데이터 ###
     bit_info_df = pd.read_csv(file_csv_path+'bitcoin_price_idx_result_'+dt+'.csv',encoding='cp949',dtype='str')
     # 컬럼 타입 정의
     col_type_dict = dict()
@@ -177,7 +195,7 @@ def chart():
 
     # return to_dict, bit_dict, bit_binance_dict, bit_binance_gg_dict, bit_upbit_dict, bit_upbit_gg_dict
     return render_template('chart_js.html',to_dict=to_dict,bit_dict=bit_dict, btn_dt_index=btn_dt_index, today_dt=dt
-                          ,freq_dict=freq_dict
+                          ,alt_dict=alt_dict, men_dict=men_dict
                           ,bit_binance_dict=bit_binance_dict, bit_binance_gg_dict=bit_binance_gg_dict
                           ,bit_upbit_dict=bit_upbit_dict, bit_upbit_gg_dict=bit_upbit_gg_dict)
 
