@@ -46,6 +46,10 @@
 <!--            /*padding: top right bottom left*/-->
           cursor: pointer;
         }
+        .coin_men_img {
+        border-radius: 50%;
+        overflow: hidden;
+        }
 
     </style>
 
@@ -57,14 +61,19 @@
 
 <body>
 <!--    <div class="chart-container2" style="position: relative; height:100vh; width:90vw">-->
-    <div id="coin_men">
+
+        <h1> 주간 요주 인물들 </h1>
+
+    <div class="coin_men">
     {% for key, value in men_dict.items() %}
-        dfd
-        <img id="coin_men_img" src="../static/images/{{key}}.jpg" width="100", height="100"/>
-        ../static/images/{{name}}.jpg
-        {{key}} {{value}}
+        <img class="coin_men_img" src="../static/images/닉 재보.jpg", width={{value[0]}}, height={{value[0]}}, alt={{key}}/>
     {% endfor %}
     </div>
+<!--    {% for key, value in men_dict.items() %}-->
+<!--        <img id="coin_men_img" src="../static/images/{{key}}.jpg", width={{value[0]}}, alt={{key}}/>-->
+<!--    {% endfor %}-->
+<!--    -->
+
 
     <canvas id="test1" width="1000" height="800"></canvas>
     <br><br>

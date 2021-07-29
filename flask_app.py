@@ -116,11 +116,16 @@ def chart():
     # 주간 인물별 빈도수 합계 => 상위 3명 추출
     men_df = men_df.groupby(['명사']).sum().reset_index().sort_values(['COUNT'], ascending=False)
     men_df = men_df.iloc[:3]
-    men_df['점유율'] = men_df['COUNT'] / men_df['COUNT'].sum()
+    men_df['점유율'] = str(men_df['COUNT'] / men_df['COUNT'].sum() * 100) + '%'
+
     # 딕셔너리(JSON) 타입으로 변경
     men_dict = dict()
+    cnt = 0
     for name, ocp_rt in zip(men_df['명사'], men_df['점유율']):
-        men_dict[name] = ocp_rt
+        img_size = str(400 - cnt*100)
+        print('사진 크기 :',img_size)
+        men_dict[name] = [img_size, ocp_rt]
+        cnt = cnt + 1
 
     print('#' * 150 + '\n', '코인 관련 인물별 점유율 지수 데이터(주간 기준) \n', men_dict.keys(), '\n 건수 :', len(men_dict),
           '\n' + '#' * 150)
