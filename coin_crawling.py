@@ -57,6 +57,8 @@ file_image_path = os.path.dirname(os.path.abspath(os.curdir)) + '\\coinkkagdugi\
 print('기본 경로 :', file_path)
 print('CSV 파일 경로 :', file_csv_path)
 print('이미지 파일 경로 :', file_image_path)
+
+
 #####################################################################
 # 1. investing.com(암호화폐 뉴스 url) 크롤링 함수
 # bs4, request 함수로는 BAN 처리 당함 => 셀레니움만 가능
@@ -736,7 +738,7 @@ binance_info_crawling(p_file_path=file_path, p_start_date=bd, p_end_date=td)
 print('전체 크롤링 완료')
 
 ########################################################################
-# 6. 업비트 API를 활용한 데이터 수집 (100일 기준)
+# 6. 업비트 API를 활용한 데이터 수집 (현재 날짜 ~ 100일전 기준 : 100일)
 ########################################################################
 def upbit_api(p_file_path, p_interval):
     print('#' * 80)
@@ -757,11 +759,16 @@ def upbit_api(p_file_path, p_interval):
     # 모델 설계 : 현재 시간 ~ 1달(5분단위 데이터 수집)
 
     # 우선 일단위로 해서 바이낸스 차트와 동일하게
-    # 기본 세팅 기간 100일
-    #     bd = (datetime.datetime.today() - datetime.timedelta(days=30)).strftime('%Y%m%d')
-    #     td = datetime.datetime.today().strftime('%Y%m%d')
+    # 전체 데이터 수집기간 : 비트고인 시작(2017년 9월 25일) ~ 하루전날짜
+    # 학습 데이터 기간 : 2년 6개월
+    # 검증 데이터 기간 : 2년 6개월 이후 나머지 기간(최근)
 
-    upbit_df = pyupbit.get_ohlcv(ticker='KRW-BTC', interval=p_interval, count=100) # count +1
+    bd = datetime.datetime(year=2017, month=9, day=25)
+    data_term = (datetime.datetime.today() - bd).days + 1 # 비트코인 시작날 포함 +1
+    # 데이터 가져오기
+    upbit_df = pyupbit.get_ohlcv(ticker='KRW-BTC', interval=p_interval, count=data_term) # count +1
+    upbit_df = upbit_df[:-1] # 오늘 날짜 제거
+
     # 컬럼명 수정
     upbit_df.columns =['오픈','고가','저가','종가','거래량','value']
 
@@ -769,11 +776,10 @@ def upbit_api(p_file_path, p_interval):
         upbit_df['등록시간'] = list(map(lambda x: x.strftime(format='%Y%m%d'), list(upbit_df.index)))
 
     ### RSI 지표 산출 ###
-    # bit_df_2 = bit_df.set_index(pd.DatetimeIndex(bit_df['날짜'].values))
     upbit_df.sort_index(ascending=True, inplace=True) # 인덱스(날짜 및 시간) 오름차순 정렬
     pd.to_datetime(list(upbit_df.index), format='%Y-%m-%d')
     upbit_df['ADJ_종가'] = upbit_df['종가']
-    delta = upbit_df['ADJ_종가'].diff(1) # 현재날짜-전날짜 종가
+    delta = upbit_df['ADJ_종가'].diff(1) # 현재날짜-전날짜 종가ㅁ
 
     # RSI를 산출하기위한 데이터프레임 선언
     delta = delta.dropna()
