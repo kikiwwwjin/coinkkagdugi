@@ -16,7 +16,6 @@ import calendar
 import datetime
 from dateutil.relativedelta import relativedelta
 import os
-import pyautogui
 
 # 크롤링 관련 패키지
 from bs4 import BeautifulSoup
@@ -30,6 +29,9 @@ import webbrowser
 # 업비트 및 바이낸스 관련 패키지
 import ccxt
 import pyupbit
+
+# IV값 산출 및 변수 선택 패키지
+from xverse.transformer import MonotonicBinning
 ##############################################################################################
 # 주제 : 암호 화폐 관련 기사의 텍스트 마이닝을 통한 동향 및 전망 분석
 # 사이트
@@ -767,13 +769,20 @@ def upbit_api(p_file_path, p_interval):
     data_term = (datetime.datetime.today() - bd).days + 1 # 비트코인 시작날 포함 +1
     # 데이터 가져오기
     upbit_df = pyupbit.get_ohlcv(ticker='KRW-BTC', interval=p_interval, count=data_term) # count +1
-    upbit_df = upbit_df[:-1] # 오늘 날짜 제거
 
     # 컬럼명 수정
     upbit_df.columns =['오픈','고가','저가','종가','거래량','value']
 
     if interval == 'day':
         upbit_df['등록시간'] = list(map(lambda x: x.strftime(format='%Y%m%d'), list(upbit_df.index)))
+
+    ### 이동평균선 산출 ###
+    # 이동 평균선 기간 설정 : 5, 10, 20, 60, 120일 기준
+    for p in [5, 10, 20, 60, 120]:
+        print('업비트 종가 기준 => 이동평균선',str(p)+'일 산출 완료')
+        upbit_df['이동평균선_'+str(p)] = upbit_df['종가'].rolling(window=p).mean()
+
+
 
     ### RSI 지표 산출 ###
     upbit_df.sort_index(ascending=True, inplace=True) # 인덱스(날짜 및 시간) 오름차순 정렬
@@ -803,7 +812,6 @@ def upbit_api(p_file_path, p_interval):
         upbit_df['RSI_'+str(p)] = rsi # rsi 컬럼 생성
 
     ### 일목균형표 ###
-
     # 전환선(기간 : 9일)
     nine_high = upbit_df['고가'].rolling(window=9).max()
     nine_low = upbit_df['저가'].rolling(window=9).min()
@@ -864,6 +872,27 @@ def upbit_api(p_file_path, p_interval):
         upbit_df.to_csv(upload_fnm, index=False, mode='a', header=False, encoding='cp949')
     print('적재완료')
     print('#' * 80)
+
+    ### 모델링 데이터 준비(학습, 검증) 및 변수 추출
+    # 학습 및 검증 데이터 셋 Split (랜덤 추출, 비율 8:2)
+    upbit_df = upbit_df[:-1] # 오늘 날짜 제거
+
+    # 변수 선택 방법 (기준 : 분류 모델)
+    # I.V 값은 해당 변수가 타겟을 분류할 수 있는 능력을 수치화 한 것
+    # I.V 값으로 타겟에 대한 영향도가 높은 독립변수 추출
+    clf_col_list = [x for x in upbit_df.columns if x not in ['등록시간', '출처', '종가']] # I.V 값 산출 대상 컬럼 선정
+    clf = MonotonicBinning()
+    # clf.fit(X=upbit_df[clf_col_list], y=upbit_df[['종가']])
+
+    # 변수 선택 방법 (기준 : 예측 모델)
+
+
+    # 학습데이터 셋
+    upbit_tr_df = upbit_df.sample(frac=0.8)
+    # 검증데이터 셋
+    upbit_test_df = upbit_df.drop(index=upbit_tr_df.index)
+
+
 
 # 업비트 기준 : 시가, 종가, 고가, 저가 (시간 단위 기준 결정)
 interval = 'day'
