@@ -26,12 +26,21 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver import ActionChains
 import webbrowser
 
+# 시각화 툴
+# import seaborn as sns
+# import matplotlib.pyplot as plt
+
+
 # 업비트 및 바이낸스 관련 패키지
 import ccxt
 import pyupbit
 
 # IV값 산출 및 변수 선택 패키지
 from xverse.transformer import MonotonicBinning
+
+# 모델관련 패키지
+from pycaret.regression import *
+
 ##############################################################################################
 # 주제 : 암호 화폐 관련 기사의 텍스트 마이닝을 통한 동향 및 전망 분석
 # 사이트
@@ -764,9 +773,10 @@ def upbit_api(p_file_path, p_interval):
     # 전체 데이터 수집기간 : 비트고인 시작(2017년 9월 25일) ~ 하루전날짜
     # 학습 데이터 기간 : 2년 6개월
     # 검증 데이터 기간 : 2년 6개월 이후 나머지 기간(최근)
-
     bd = datetime.datetime(year=2017, month=9, day=25)
     data_term = (datetime.datetime.today() - bd).days + 1 # 비트코인 시작날 포함 +1
+    # 오늘 날짜
+    today_dt = datetime.datetime.today().strftime('%Y%m%d')
     # 데이터 가져오기
     upbit_df = pyupbit.get_ohlcv(ticker='KRW-BTC', interval=p_interval, count=data_term) # count +1
 
@@ -880,17 +890,108 @@ def upbit_api(p_file_path, p_interval):
     # 변수 선택 방법 (기준 : 분류 모델)
     # I.V 값은 해당 변수가 타겟을 분류할 수 있는 능력을 수치화 한 것
     # I.V 값으로 타겟에 대한 영향도가 높은 독립변수 추출
-    clf_col_list = [x for x in upbit_df.columns if x not in ['등록시간', '출처', '종가']] # I.V 값 산출 대상 컬럼 선정
-    clf = MonotonicBinning()
+    # clf_col_list = [x for x in upbit_df.columns if x not in ['등록시간', '출처', '종가']] # I.V 값 산출 대상 컬럼 선정
+    # clf = MonotonicBinning()
     # clf.fit(X=upbit_df[clf_col_list], y=upbit_df[['종가']])
 
     # 변수 선택 방법 (기준 : 예측 모델)
+
+
+    # 데이터 셋 준비(결측치 제거)
+    upbit_df.drop(columns=['후행스팬_SCALING'], inplace=True) # 후행스팬 컬럼 제거
+    upbit_df['target'] = upbit_df['종가'].shift(-1) # 타겟 다음날 종가 컬럼 생성
+    upbit_df = upbit_df.dropna()
 
 
     # 학습데이터 셋
     upbit_tr_df = upbit_df.sample(frac=0.8)
     # 검증데이터 셋
     upbit_test_df = upbit_df.drop(index=upbit_tr_df.index)
+
+    ## 예측모델 => 컨셉 전날의 데이터로 다음 날의 종가 예측
+    # pycaret 준비단계
+    setup_rg = setup(data=upbit_tr_df, target='target', ignore_features=['등록시간', '출처'], silent=True)
+
+
+    # compare_models : 모델 비교(sort = 비교 기준 지표, n_selecd = return 으로 상위 추출 모델리스트 수)
+    best_models = compare_models(n_select=3)
+    # 모델 생성 : 특정모델 생성 => create_model 함수
+    # exclude = None => 2.1버전부터 blacklist
+    # include = None => 2.1버전부터 whitelist
+    # fold = 10 => 표시할 모델 수(K-fold 임 => 데이터 셋을 5번 바꿔서 검증)
+    # round = 4 => 표시할 소수점 자리수
+    # sort = 'Accuracy' => 순위 정렬 기준
+    # n_select = 1 # 최종 선택될 모델수
+    # budget_time = 0 => 0이 아닌 값을 넣은 경우
+    # turbo = True => False로 설정하면 runtime이 긴 모델도 평가대상에 포함
+    # verbose = True => False로 설정하면 순위표가 출력되지 않음
+
+    # 모델별 결과지표 데이터 프레임 추출
+    # Classification(분류모델) 결과지표 : Accuracy, AUC, Recall, Precision, F1, Kappa, MCC
+    # Regression(예측모델) 결과지표 : MAE, MSE, RMSE, R2, RMSLE, MAPE
+    # 기본적으로 테이블은 분류일 경우 정확도, 회귀일 경우 R2로 정렬됨
+    # 콘솔창에 '엔터키' 쳐야지 데이터 프레임으로 가져올 수 있음 => ipython에서는 확인가능
+    models_idx_df = pull()
+    models_idx_df = models_idx_df.reset_index().rename(columns={'index':'model_nm'})
+    print('### 모델 결과 지표기준(R2)에 따른 모델 순위 ###','\n',models_idx_df)
+
+    # 모델 튜닝
+    # tuned_models_dict = dict()
+    # cnt = 0
+    # for m in best_models:
+    #     cnt += 1
+    #     tuned_models_dict[cnt] = list()
+    #     tuned_models_dict[cnt].append(tune_model(m, optimize='RMSE'))
+    #     tuned_models_dict[cnt].append(pull())
+    # 1.435753e+06
+    # 9.100064e+05
+    # tuned_models_dict[1]
+    # best_models[0]
+    # 1.702955e+06
+    # tune_model 함수의 옵션
+    # estimator
+    # fold
+    # n_iter
+    # custom_grid
+    # optimize
+    # custom_scorer
+    # choose_better
+    # verbose = True
+    # tuned_models_idx_df = pull()
+
+    # ensemble_model(앙상블 모델) => 각 모델별 Bagging(결합), Boosting(보완)
+    # bagged_models = ensemble_model(best_models[0], method='Bagging')
+    # bagged_models_idx_df = pull()
+    # models_idx_df
+
+
+    # blend_model => 모델간 결합
+    # blend_model()
+    # blended = blend_models(estimator_list=best_models, fold=2)
+    # blended_idx_df = pull()
+
+    # 최종 모델 선정 및 검증
+    final_model = finalize_model(best_models[0])
+    print('최종모델 :', final_model)
+    pred_df = predict_model(final_model, data=upbit_test_df) # 예측값 컬럼명 : 'Label'
+    pred_df.rename(columns={'Label' : '예측값'}, inplace=True) # 예측값 컬럼명 변경
+    # 실제값 : UP, DOWN (올랐다, 내렸다) 분류 문제까지 정의
+    pred_df['target_updown'] = pred_df['target'] - pred_df['종가']
+    pred_df['target_updown'] = pred_df['target_updown'].apply(lambda x : 'UP' if x > 0 else 'STAY_OR_DOWN') # 실제값 : 다음날 종가 'UP', 'STAY_OR_DOWN'
+    pred_df['오차값'] = pred_df['예측값'] - pred_df['종가']
+    pred_df['예측_등락여부'] = pred_df['오차값'].apply(lambda x : 'UP' if x > 0 else 'STAY_OR_DOWN')
+    pred_df['등락여부_정답여부'] = [1 if pred == tgt else 0 for pred, tgt in zip(pred_df['예측_등락여부'], pred_df['target_updown'])]
+
+    acc_rt = pred_df['등락여부_정답여부'].sum()/len(pred_df)
+    print('등락여부 정답률 :', round(acc_rt, 2)*100,'%')
+
+    # 모델 저장
+    save_model(final_model, file_csv_path+'model_'+today_dt)
+
+
+
+
+
 
 
 
