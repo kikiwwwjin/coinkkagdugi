@@ -40,6 +40,10 @@ from xverse.transformer import MonotonicBinning
 
 # 모델관련 패키지
 from pycaret.regression import *
+import tensorflow as tf
+from keras.utils.np_utils import to_categorical # DNN
+from keras import models # DNN
+from keras import layers # DNN
 
 ##############################################################################################
 # 주제 : 암호 화폐 관련 기사의 텍스트 마이닝을 통한 동향 및 전망 분석
@@ -785,6 +789,7 @@ def upbit_api(p_file_path, p_interval):
 
     if interval == 'day':
         upbit_df['등록시간'] = list(map(lambda x: x.strftime(format='%Y%m%d'), list(upbit_df.index)))
+        upbit_df.index = pd.to_datetime(list(map(lambda x: x.strftime(format='%Y%m%d'), list(upbit_df.index))), format='%Y%m%d')
 
     ### 이동평균선 산출 ###
     # 이동 평균선 기간 설정 : 5, 10, 20, 60, 120일 기준
@@ -859,48 +864,39 @@ def upbit_api(p_file_path, p_interval):
     scale_df.columns = [x + '_SCALING' for x in scale_df.columns]
 
     upbit_df = pd.merge(upbit_df, scale_df, left_index=True, right_index=True, how='left')
+
     # 컬럼 재배치 및 수정
-    upbit_df = upbit_df[
-        ['등록시간','저가','오픈','종가','고가','거래량','저가_SCALING','오픈_SCALING','종가_SCALING','고가_SCALING','RSI_3',
-         'RSI_7', 'RSI_14','전환선_SCALING', '기준선_SCALING', '선행스팬_1_SCALING', '선행스팬_2_SCALING', '후행스팬_SCALING']]
+    # upbit_df = upbit_df[
+    #     ['등록시간','저가','오픈','종가','고가','거래량','저가_SCALING','오픈_SCALING','종가_SCALING','고가_SCALING','RSI_3',
+    #      'RSI_7', 'RSI_14','전환선_SCALING', '기준선_SCALING', '선행스팬_1_SCALING', '선행스팬_2_SCALING', '후행스팬_SCALING']]
 
     # 출처 컬럼 생성
-    upbit_df['출처'] = 'upbit'
+    # upbit_df['출처'] = 'upbit'
 
     # 데이터 생성 및 적재
-    today_dt = datetime.datetime.today().strftime(format='%Y%m%d')  # 오늘 날짜(적재 날짜)
-    upload_fnm = 'bitcoin_info.csv'  # 적재 파일명
-    f_list = os.path.splitext(p_file_path + 'static\\coin_data\\' + upload_fnm)
-    upload_fnm = f_list[0] + '_' + today_dt + f_list[1]
-
-    # 딕셔너리 데이터 프레임에 적재
-    if os.path.isfile(upload_fnm) == False:
-        print('업비트 정보 파일 미존재 => 파일생성 및 적재')
-        upbit_df.to_csv(upload_fnm, index=False, mode='w', encoding='cp949')
-    else:
-        print('업비트 정보 파일 존재 => 적재')
-        upbit_df.to_csv(upload_fnm, index=False, mode='a', header=False, encoding='cp949')
-    print('적재완료')
-    print('#' * 80)
+    # today_dt = datetime.datetime.today().strftime(format='%Y%m%d')  # 오늘 날짜(적재 날짜)
+    # upload_fnm = 'bitcoin_info.csv'  # 적재 파일명
+    # f_list = os.path.splitext(p_file_path + 'static\\coin_data\\' + upload_fnm)
+    # upload_fnm = f_list[0] + '_' + today_dt + f_list[1]
+    #
+    # # 딕셔너리 데이터 프레임에 적재
+    # if os.path.isfile(upload_fnm) == False:
+    #     print('업비트 정보 파일 미존재 => 파일생성 및 적재')
+    #     upbit_df.to_csv(upload_fnm, index=False, mode='w', encoding='cp949')
+    # else:
+    #     print('업비트 정보 파일 존재 => 적재')
+    #     upbit_df.to_csv(upload_fnm, index=False, mode='a', header=False, encoding='cp949')
+    # print('적재완료')
+    # print('#' * 80)
 
     ### 모델링 데이터 준비(학습, 검증) 및 변수 추출
+    # 변수 재정의 => value, ADJ종가, 후행스팬, 후행스팬_SCALING 컬럼 제거
+    upbit_df.drop(columns=['value','ADJ_종가','후행스팬_SCALING', '후행스팬'], inplace=True)
+
     # 학습 및 검증 데이터 셋 Split (랜덤 추출, 비율 8:2)
     upbit_df = upbit_df[:-1] # 오늘 날짜 제거
-
-    # 변수 선택 방법 (기준 : 분류 모델)
-    # I.V 값은 해당 변수가 타겟을 분류할 수 있는 능력을 수치화 한 것
-    # I.V 값으로 타겟에 대한 영향도가 높은 독립변수 추출
-    # clf_col_list = [x for x in upbit_df.columns if x not in ['등록시간', '출처', '종가']] # I.V 값 산출 대상 컬럼 선정
-    # clf = MonotonicBinning()
-    # clf.fit(X=upbit_df[clf_col_list], y=upbit_df[['종가']])
-
-    # 변수 선택 방법 (기준 : 예측 모델)
-
-
-    # 데이터 셋 준비(결측치 제거)
-    upbit_df.drop(columns=['후행스팬_SCALING'], inplace=True) # 후행스팬 컬럼 제거
-    upbit_df['target'] = upbit_df['종가'].shift(-1) # 타겟 다음날 종가 컬럼 생성
-    upbit_df = upbit_df.dropna()
+    upbit_df['target'] = upbit_df['종가'].shift(-1)  # 타겟 다음날 종가 컬럼 생성
+    upbit_df = upbit_df.dropna()  # 결측치 제거
 
 
     # 학습데이터 셋
@@ -908,9 +904,12 @@ def upbit_api(p_file_path, p_interval):
     # 검증데이터 셋
     upbit_test_df = upbit_df.drop(index=upbit_tr_df.index)
 
+    # Scaling(스케일링 => 모델 효과 개선?? 원래의 전통 모델 60프로, DNN 50프로대)
+
+
     ## 예측모델 => 컨셉 전날의 데이터로 다음 날의 종가 예측
     # pycaret 준비단계
-    setup_rg = setup(data=upbit_tr_df, target='target', ignore_features=['등록시간', '출처'], silent=True)
+    setup_rg = setup(data=upbit_tr_df, target='target', ignore_features=['등록시간'], silent=True)
 
 
     # compare_models : 모델 비교(sort = 비교 기준 지표, n_selecd = return 으로 상위 추출 모델리스트 수)
@@ -987,13 +986,93 @@ def upbit_api(p_file_path, p_interval):
 
     # 모델 저장
     save_model(final_model, file_csv_path+'model_'+today_dt)
+    print('예측 모델 저장 완료')
+
+    ### 2. 분류 모델(인공신경망) => DDN, LSTM Classification 모델 (분류 : 상승, 하락)
+    ### 2. 인공신경망 회귀(Regression) 모델 => 다음날 '종가' 예측
+
+    # 학습 및 테스트 데이터 => 타겟 변수(분류 : 1 => 상승, 0 => 동결 또는 하락) 생성, Numpy로 형변환
+    # upbit_tr_df['target_updown'] = upbit_tr_df['target'] - upbit_tr_df['종가'] # N+1 일 종가 - N 일 종가
+    # upbit_tr_df['target'] = upbit_tr_df['target_updown'].apply(lambda x: 1 if x > 0 else 0)  # 실제값 : 다음날 종가 'UP'=>1, 'STAY_OR_DOWN'=>0
+    # upbit_tr_df.drop(columns=['target_updown'], inplace=True)
+    #
+    # upbit_test_df['target_updown'] = upbit_test_df['target'] - upbit_test_df['종가']  # N+1 일 종가 - N 일 종가
+    # upbit_test_df['target'] = upbit_test_df['target_updown'].apply(lambda x: 1 if x > 0 else 0)  # 실제값 : 다음날 종가 'UP'=>1, 'STAY_OR_DOWN'=>0
+    # upbit_test_df.drop(columns=['target_updown'], inplace=True)
+
+    # 학습 대상 컬럼만 추출(마이너스 값이 포함된 컬럼도 제외)
+    d_col = ['등록시간', '출처', 'target']
+    for x in upbit_tr_df.columns:
+        print(x)
+        if x not in d_col:
+            temp_df = upbit_tr_df[x].map(lambda x : 1 if x < 0 else 0)
+            if temp_df.sum() > 0:
+                print(x, '데이터에 음수가 포함')
+                d_col.append(x)
+
+    t_col = list(upbit_tr_df.columns)
+    del_list = list(set(t_col).intersection(d_col))
+    for x in del_list:
+        t_col.remove(x)
+
+    # 모델링을 위한 학습데이터 Numpy 형변환
+    tr_array = np.array(upbit_tr_df[t_col]) # INPUT DATA
+    tg_array = np.array(upbit_tr_df['target']) # TARGET DATA
+    test_array = np.array(upbit_test_df[t_col]) # TEST DATA
 
 
+    # 학습데이터 확인
+    print('SHAPE 확인 : ', tr_array.shape, tg_array.shape, test_array.shape)
+
+    # 모델 생성(DNN)
+    model = models.Sequential()
+    # ReLU 의 역효과참고 : 배니싱 그래디언트로부터 자유로워진 ReLU는 backpropagation 과정에서 비용함수를 계산하는 계수를 온전히 전달하지만,
+    # input값에 음수가 포함이 된다면 기울기가 0이 되버리므로, 미분을 하면 backpropagation 과정 중간에 꺼져버리는 상황이 발생한다.
+    # Chain rule로 미분을 하기 때문에 음수가 한번 나오면 뒤에서도 다 꺼진다.
+    # 따라서 input 데이터에서 음수값이 포함되지 않도록 0~1사이의 값으로 정규화 시키는 과정을 거치는 것이 좋다.
+    model.add(layers.Dense(256, activation='relu', input_shape=(tr_array.shape[1],)))
+    model.add(layers.Dense(128, activation='relu'))
+    model.add(layers.Dense(64, activation='relu'))
+    model.add(layers.Dense(32, activation='relu'))
+    model.add(layers.Dense(16, activation='relu'))
+    model.add(layers.Dense(1, activation='linear'))
+
+    # 모델 학습과정 설정
+    # 활성화 함수 : linear, sigmoid, softmax
+    # 손실 함수 : mse, binary_crossentropy(이진 분류), categorical_crossentropy(다중 분류)
+    # 옵티마이저(최적화 알고리즘) : gradient desent methoid, SGD, rmsprop, adam, adagrad
+    model.compile(loss='mse', optimizer='adam', metrics=['mae','mse'])
+    # 모델 학습
+    hist = model.fit(tr_array, tg_array, epochs=50, verbose=2)
+
+    # 스코어링
+    proba = model.predict(x=test_array)
+    upbit_test_df['pred'] = proba
+
+    # 예측값과 실제값과 비교
+    upbit_test_df['target_updown'] = upbit_test_df['target'] - upbit_test_df['종가']
+    upbit_test_df['target_updown'] = upbit_test_df['target_updown'].apply(lambda x: 'UP' if x > 0 else 'STAY_OR_DOWN')  # 실제값 : 다음날 종가 'UP', 'STAY_OR_DOWN'
+    upbit_test_df['오차값'] = upbit_test_df['pred'] - upbit_test_df['종가']
+    upbit_test_df['예측_등락여부'] = upbit_test_df['오차값'].apply(lambda x: 'UP' if x > 0 else 'STAY_OR_DOWN')
+    upbit_test_df['등락여부_정답여부'] = [1 if pred == tgt else 0 for pred, tgt in zip(upbit_test_df['예측_등락여부'], upbit_test_df['target_updown'])]
+
+    # 정확도
+    acc_rt = upbit_test_df['등락여부_정답여부'].sum()/len(upbit_test_df)
+    print('DNN 모델 정확도 :', acc_rt)
 
 
+    ### 3. LSTM 모델 : 5일전 데이터 부터 현재의 데이터로 다음날 '종가' 예측
+
+    # 학습데이터 구축(Window size : 5)
+    upbit_df[t_col] # 과거의
+    for i in range(-1, -6, -1):
+        print(-i, '일 전 데이터 Merge')
+        upbit_df[t_col].shift(i)
+
+    upbit_tr_df[t_col] # TRAIN DATA
 
 
-
+upbit_tr_df.drop('종가', 1)
 
 # 업비트 기준 : 시가, 종가, 고가, 저가 (시간 단위 기준 결정)
 interval = 'day'
