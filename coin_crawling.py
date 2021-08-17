@@ -38,12 +38,16 @@ import pyupbit
 # IV값 산출 및 변수 선택 패키지
 from xverse.transformer import MonotonicBinning
 
+# SCALING 패키지
+from sklearn.preprocessing import MinMaxScaler, MaxAbsScaler
+
 # 모델관련 패키지
 from pycaret.regression import *
 import tensorflow as tf
 from keras.utils.np_utils import to_categorical # DNN
 from keras import models # DNN
 from keras import layers # DNN
+
 
 ##############################################################################################
 # 주제 : 암호 화폐 관련 기사의 텍스트 마이닝을 통한 동향 및 전망 분석
@@ -899,10 +903,15 @@ def upbit_api(p_file_path, p_interval):
     upbit_df = upbit_df.dropna()  # 결측치 제거
 
 
+    # 학습데이터 및 검증데이터 나누기 : TRAIN & TEST 데이터 Split(TRAIN:TEST = 8:2)
+    split_no = len(upbit_df) // 5
+    upbit_tr_df = upbit_df[:-split_no]  # TRAIN SET
+    upbit_test_df = upbit_df[-split_no:]  # TEST SET
+
     # 학습데이터 셋
-    upbit_tr_df = upbit_df.sample(frac=0.8)
+    # upbit_tr_df = upbit_df.sample(frac=0.8)
     # 검증데이터 셋
-    upbit_test_df = upbit_df.drop(index=upbit_tr_df.index)
+    # upbit_test_df = upbit_df.drop(index=upbit_tr_df.index)
 
     # Scaling(스케일링 => 모델 효과 개선?? 원래의 전통 모델 60프로, DNN 50프로대)
 
@@ -913,7 +922,7 @@ def upbit_api(p_file_path, p_interval):
 
 
     # compare_models : 모델 비교(sort = 비교 기준 지표, n_selecd = return 으로 상위 추출 모델리스트 수)
-    best_models = compare_models(n_select=3)
+    best_models = compare_models(n_select=3, sort='MSE')
     # 모델 생성 : 특정모델 생성 => create_model 함수
     # exclude = None => 2.1버전부터 blacklist
     # include = None => 2.1버전부터 whitelist
@@ -933,7 +942,7 @@ def upbit_api(p_file_path, p_interval):
     models_idx_df = pull()
     models_idx_df = models_idx_df.reset_index().rename(columns={'index':'model_nm'})
     print('### 모델 결과 지표기준(R2)에 따른 모델 순위 ###','\n',models_idx_df)
-
+    model_result_dict = models_idx_df[['Model','MAE','MSE']][:1].to_dict('list')
     # 모델 튜닝
     # tuned_models_dict = dict()
     # cnt = 0
@@ -972,17 +981,18 @@ def upbit_api(p_file_path, p_interval):
     # 최종 모델 선정 및 검증
     final_model = finalize_model(best_models[0])
     print('최종모델 :', final_model)
-    pred_df = predict_model(final_model, data=upbit_test_df) # 예측값 컬럼명 : 'Label'
-    pred_df.rename(columns={'Label' : '예측값'}, inplace=True) # 예측값 컬럼명 변경
+    upbit_test_df = predict_model(final_model, data=upbit_test_df) # 예측값 컬럼명 : 'Label'
+    upbit_test_df.rename(columns={'Label' : '전통모델_pred'}, inplace=True) # 예측값 컬럼명 변경
     # 실제값 : UP, DOWN (올랐다, 내렸다) 분류 문제까지 정의
-    pred_df['target_updown'] = pred_df['target'] - pred_df['종가']
-    pred_df['target_updown'] = pred_df['target_updown'].apply(lambda x : 'UP' if x > 0 else 'STAY_OR_DOWN') # 실제값 : 다음날 종가 'UP', 'STAY_OR_DOWN'
-    pred_df['오차값'] = pred_df['예측값'] - pred_df['종가']
-    pred_df['예측_등락여부'] = pred_df['오차값'].apply(lambda x : 'UP' if x > 0 else 'STAY_OR_DOWN')
-    pred_df['등락여부_정답여부'] = [1 if pred == tgt else 0 for pred, tgt in zip(pred_df['예측_등락여부'], pred_df['target_updown'])]
+    upbit_test_df['target_updown'] = upbit_test_df['target'] - upbit_test_df['종가']
+    upbit_test_df['target_updown'] = upbit_test_df['target_updown'].apply(lambda x : 'UP' if x > 0 else 'STAY_OR_DOWN') # 실제값 : 다음날 종가 'UP', 'STAY_OR_DOWN'
 
-    acc_rt = pred_df['등락여부_정답여부'].sum()/len(pred_df)
-    print('등락여부 정답률 :', round(acc_rt, 2)*100,'%')
+    upbit_test_df['전통모델_오차값'] = upbit_test_df['전통모델_pred'] - upbit_test_df['종가']
+    upbit_test_df['전통모델_등락여부'] = upbit_test_df['전통모델_오차값'].apply(lambda x : 'UP' if x > 0 else 'STAY_OR_DOWN')
+    upbit_test_df['전통모델_정답여부'] = [1 if pred == tgt else 0 for pred, tgt in zip(upbit_test_df['전통모델_등락여부'], upbit_test_df['target_updown'])]
+
+    model_acc = upbit_test_df['전통모델_정답여부'].sum()/len(upbit_test_df)
+    print('등락여부 정답률 :', round(model_acc, 2)*100,'%')
 
     # 모델 저장
     save_model(final_model, file_csv_path+'model_'+today_dt)
@@ -1019,60 +1029,185 @@ def upbit_api(p_file_path, p_interval):
     tr_array = np.array(upbit_tr_df[t_col]) # INPUT DATA
     tg_array = np.array(upbit_tr_df['target']) # TARGET DATA
     test_array = np.array(upbit_test_df[t_col]) # TEST DATA
+    test_tg_array = np.array(upbit_test_df['target'])  # TEST DATA
 
 
     # 학습데이터 확인
     print('SHAPE 확인 : ', tr_array.shape, tg_array.shape, test_array.shape)
 
     # 모델 생성(DNN)
-    model = models.Sequential()
+    dnn_model = models.Sequential()
     # ReLU 의 역효과참고 : 배니싱 그래디언트로부터 자유로워진 ReLU는 backpropagation 과정에서 비용함수를 계산하는 계수를 온전히 전달하지만,
     # input값에 음수가 포함이 된다면 기울기가 0이 되버리므로, 미분을 하면 backpropagation 과정 중간에 꺼져버리는 상황이 발생한다.
     # Chain rule로 미분을 하기 때문에 음수가 한번 나오면 뒤에서도 다 꺼진다.
     # 따라서 input 데이터에서 음수값이 포함되지 않도록 0~1사이의 값으로 정규화 시키는 과정을 거치는 것이 좋다.
-    model.add(layers.Dense(256, activation='relu', input_shape=(tr_array.shape[1],)))
-    model.add(layers.Dense(128, activation='relu'))
-    model.add(layers.Dense(64, activation='relu'))
-    model.add(layers.Dense(32, activation='relu'))
-    model.add(layers.Dense(16, activation='relu'))
-    model.add(layers.Dense(1, activation='linear'))
+    dnn_model.add(layers.Dense(256, activation='relu', input_shape=(tr_array.shape[1],)))
+    dnn_model.add(layers.Dense(128, activation='relu'))
+    dnn_model.add(layers.Dense(64, activation='relu'))
+    dnn_model.add(layers.Dense(32, activation='relu'))
+    dnn_model.add(layers.Dense(16, activation='relu'))
+    dnn_model.add(layers.Dense(1, activation='linear'))
 
     # 모델 학습과정 설정
     # 활성화 함수 : linear, sigmoid, softmax
     # 손실 함수 : mse, binary_crossentropy(이진 분류), categorical_crossentropy(다중 분류)
     # 옵티마이저(최적화 알고리즘) : gradient desent methoid, SGD, rmsprop, adam, adagrad
-    model.compile(loss='mse', optimizer='adam', metrics=['mae','mse'])
+    dnn_model.compile(loss='mse', optimizer='rmsprop', metrics=['mae','mse'])
+
     # 모델 학습
-    hist = model.fit(tr_array, tg_array, epochs=50, verbose=2)
+    hist = dnn_model.fit(tr_array, tg_array, epochs=50, verbose=2)
 
     # 스코어링
-    proba = model.predict(x=test_array)
-    upbit_test_df['pred'] = proba
+    dnn_eval = dnn_model.evaluate(test_array, test_tg_array)
+    model_result_dict['Model'].append('DNN') # 모델명 저장
+    model_result_dict['MAE'].append(dnn_eval[1]) # MAE 저장
+    model_result_dict['MSE'].append(dnn_eval[2]) # MSE 저장
+
+    # 테스트 셋에 대한 예측값 산출
+    proba = dnn_model.predict(x=test_array)
+    upbit_test_df['DNN_pred'] = proba
 
     # 예측값과 실제값과 비교
-    upbit_test_df['target_updown'] = upbit_test_df['target'] - upbit_test_df['종가']
-    upbit_test_df['target_updown'] = upbit_test_df['target_updown'].apply(lambda x: 'UP' if x > 0 else 'STAY_OR_DOWN')  # 실제값 : 다음날 종가 'UP', 'STAY_OR_DOWN'
-    upbit_test_df['오차값'] = upbit_test_df['pred'] - upbit_test_df['종가']
-    upbit_test_df['예측_등락여부'] = upbit_test_df['오차값'].apply(lambda x: 'UP' if x > 0 else 'STAY_OR_DOWN')
-    upbit_test_df['등락여부_정답여부'] = [1 if pred == tgt else 0 for pred, tgt in zip(upbit_test_df['예측_등락여부'], upbit_test_df['target_updown'])]
+    upbit_test_df['DNN_오차값'] = upbit_test_df['DNN_pred'] - upbit_test_df['종가'] # 예측값에 대한 오차
+    upbit_test_df['DNN_등락여부'] = upbit_test_df['DNN_오차값'].apply(lambda x: 'UP' if x > 0 else 'STAY_OR_DOWN')
+    upbit_test_df['DNN_정답여부'] = [1 if pred == tgt else 0 for pred, tgt in zip(upbit_test_df['DNN_등락여부'], upbit_test_df['target_updown'])]
 
     # 정확도
-    acc_rt = upbit_test_df['등락여부_정답여부'].sum()/len(upbit_test_df)
-    print('DNN 모델 정확도 :', acc_rt)
+    dnn_acc = upbit_test_df['DNN_정답여부'].sum()/len(upbit_test_df)
+    print('DNN 모델 정확도 :', dnn_acc)
 
 
     ### 3. LSTM 모델 : 5일전 데이터 부터 현재의 데이터로 다음날 '종가' 예측
 
-    # 학습데이터 구축(Window size : 5)
-    upbit_df[t_col] # 과거의
-    for i in range(-1, -6, -1):
-        print(-i, '일 전 데이터 Merge')
-        upbit_df[t_col].shift(i)
+    ## 학습데이터 구축(Window size : 5)
+    # INPUT(TRAIN, TEST) 데이터 생성 함수
+    def create_input_data(p_window_size, p_feature, p_scaling):
 
-    upbit_tr_df[t_col] # TRAIN DATA
+        # 1. Window 사이즈 설정
+        w_size = p_window_size
+        print('Window 사이즈 :', w_size)
+        # Features 선택 (1 : target에 해당 하는 '종가', 2 : 변수중 음수값을 가진 컬럼을 제외한 모든 컬럼)
+        if p_feature == 1:
+            t_col = ['종가']
+            print('FEATURE LIST :',t_col)
+        else:
+            # 학습 대상 컬럼만 추출(마이너스 값이 포함된 컬럼도 제외)
+            d_col = ['등록시간', '출처', 'target']
+            for x in upbit_tr_df.columns:
+                print(x)
+                if x not in d_col:
+                    temp_df = upbit_tr_df[x].map(lambda x: 1 if x < 0 else 0)
+                    if temp_df.sum() > 0:
+                        print(x, '데이터에 음수가 포함')
+                        d_col.append(x)
 
+            t_col = list(upbit_tr_df.columns)
+            del_list = list(set(t_col).intersection(d_col))
+            for x in del_list:
+                t_col.remove(x)
+            print('FEATURE LIST :', t_col)
 
-upbit_tr_df.drop('종가', 1)
+        # 변수 SCALING 여부(SCALING 방식 : MINMAXSCALING => 0 ~ 1의 값)
+        # 타겟인 변수 : '종가'만 채택 되었을 때만 SCALING 적용가능
+        if p_scaling == 1:
+            # MINMAXSCALING
+            mm_scaler = MinMaxScaler()
+            upbit_df['종가_SCALING_INPUT'] = mm_scaler.fit_transform(np.array(upbit_df['종가']).reshape(-1, 1)).flatten()
+            t_col = ['종가_SCALING_INPUT']
+            print('스케일링 적용')
+        else : print('스케일링 미적용')
+
+        # INPUT 데이터 생성 FOR문
+        cnt = 0 # for문 순번 count
+        if len(t_col) == 1: # t_col은 학습대상의 변수 리스트
+            print('Features list :', t_col)
+            for i in range(0,len(upbit_df)-w_size):
+                cnt += 1
+            # temp_list = upbit_df[t_col].iloc[i:i+w_size+1].values.tolist()
+                temp_arr = upbit_df[t_col].iloc[i:i+w_size+1].values.reshape(-1,w_size+1,len(t_col))
+                if cnt == 1:
+                    all_arr = copy.deepcopy(temp_arr)
+                else:
+                    all_arr = np.append(all_arr, temp_arr, axis=0)
+                # print('순번 :',cnt,'전체 INPUT DATA SHAPE:',all_arr.shape, 'TEMP INPUT DATA SHAPE :',temp_arr.shape)
+
+        else: # 학습대상 변수가 여러개일때
+            print('Features', t_col)
+            for i in range(0, len(upbit_df) - w_size):
+                cnt += 1
+                temp_arr = upbit_df[t_col].iloc[i:i+w_size+1].values.reshape(-1,w_size+1,len(t_col))
+                if cnt == 1:
+                    all_arr = copy.deepcopy(temp_arr)
+                else:
+                    all_arr = np.append(all_arr, temp_arr, axis=0)
+                # print('순번 :',cnt,'전체 INPUT DATA SHAPE:',all_arr.shape, 'TEMP INPUT DATA SHAPE :',temp_arr.shape)
+
+        print('전체 INPUT DATA SHAPE:',all_arr.shape, 'TEMP INPUT DATA SHAPE :',temp_arr.shape)
+
+        # TRAIN & TEST INPUT DATA
+        tr_arr = all_arr[:-split_no]  # TRAIN INPUT DATA
+        tt_arr = all_arr[-split_no:]  # TEST INPUT DATA
+
+        # INPUT DATA 3차원 행렬로 변환(samples, time_steps, features)
+        # tr_arr = np.reshape(tr_arr, (tr_arr.shape[0], 1, tr_arr.shape[1]))
+        # tt_arr = np.reshape(tt_arr, (tt_arr.shape[0], 1, tt_arr.shape[1]))
+
+        print('INPUT 데이터 shape :', tr_arr.shape, tt_arr.shape)
+
+        # TRAIN & TEST TARGET DATA
+        tg_arr = np.array(upbit_df['target'][w_size:])
+        tg_arr = np.reshape(tg_arr, (tg_arr.shape[0],1))
+        tr_tg_arr = tg_arr[:-split_no]  # TRAIN TARGET DATA
+        tt_tg_arr = tg_arr[-split_no:]  # TEST TARGET DATA
+
+        print('TRAIN DATA shape(INPUT, TARGET) :', tr_arr.shape, tr_tg_arr.shape)
+        print('TEST DATA shape(INPUT, TARGET) :', tt_arr.shape, tt_tg_arr.shape)
+
+        return tr_arr, tr_tg_arr, tt_arr, tt_tg_arr
+    tr_arr, tr_tg_arr, tt_arr, tt_tg_arr = create_input_data(p_window_size=5, p_feature=1, p_scaling=1)
+
+    # 모델 생성(LSTM)
+    lstm_model = models.Sequential()
+    lstm_model.add(layers.LSTM(64, input_shape=(tr_arr.shape[1], tr_arr.shape[2]), activation='relu'))
+    lstm_model.add(layers.Dense(32, activation='relu'))
+    lstm_model.add(layers.Dense(16, activation='relu'))
+    lstm_model.add(layers.Dense(1, activation='linear'))
+
+    # loss = Huber
+    lstm_model.compile(loss='mse', optimizer='rmsprop', metrics=['mae','mse'])
+    print(lstm_model.summary())
+
+    # 모델 학습
+    hist = lstm_model.fit(tr_arr, tr_tg_arr, epochs=50, verbose=2)
+
+    # 스코어링
+    lstm_eval = lstm_model.evaluate(tt_arr, tt_tg_arr) # LOSS, MAE, MSE 결과
+    model_result_dict['Model'].append('LSTM')  # 모델명 저장
+    model_result_dict['MAE'].append(lstm_eval[1])  # MAE 저장
+    model_result_dict['MSE'].append(lstm_eval[2])  # MSE 저장
+
+    # 테스트 셋에 대한 예측값 산출
+    proba = lstm_model.predict(x=tt_arr)
+    upbit_test_df['LSTM_pred'] = proba
+
+    # 예측값과 실제값과 비교
+    upbit_test_df['LSTM_오차값'] = upbit_test_df['LSTM_pred'] - upbit_test_df['종가']
+    upbit_test_df['LSTM_등락여부'] = upbit_test_df['LSTM_오차값'].apply(lambda x: 'UP' if x > 0 else 'STAY_OR_DOWN')
+    upbit_test_df['LSTM_정답여부'] = [1 if pred == tgt else 0 for pred, tgt in zip(upbit_test_df['LSTM_등락여부'], upbit_test_df['target_updown'])]
+
+    # 정확도
+    lstm_acc = upbit_test_df['LSTM_정답여부'].sum()/len(upbit_test_df)
+    # DNN - loss: 1580319737320.3694 - mean_absolute_error: 668930.7644 - mean_squared_error: 1580319737320.3694
+    print('LSTM 모델 정확도 :', lstm_acc)
+
+    # 전체 모델 비교
+    print('정확도 => 전통모델, DNN, LSTM :', model_acc, dnn_acc, lstm_acc)
+
+    ### 모델 결과 적재 ###
+    model_result_df = pd.DataFrame(model_result_dict)
+    model_result_df.to_csv(file_csv_path+'model_idx_result_'+today_dt+'.csv', index=False, mode='w', encoding='cp949')
+    print('모델 결과 지표 적재')
+
 
 # 업비트 기준 : 시가, 종가, 고가, 저가 (시간 단위 기준 결정)
 interval = 'day'
