@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title> 코인깍두기 </title>
+    <title> 환영합니다~^^ 코인깍두기입니다! </title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script>
     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
     <script type="text/JavaScript" src="../static/jquery-1.7.min.js">
@@ -46,75 +46,178 @@
 <!--            /*padding: top right bottom left*/-->
           cursor: pointer;
         }
-        .coin_men_img {
-        border-radius: 50%;
-        overflow: hidden;
+        .men_table {
+            margin-left: auto;
+            margin-right: auto;
+            text-align: center;
+            border: none;
         }
+        .model_idx_table{
+            margin-left: auto;
+            margin-right: auto;
+            text-align: center;
+            border : 1px solid #66a3c1;
+            border-collapse : collapse;
+        }
+        .model_idx_table > tbody > tr.model_idx_table, th.model_idx_table, td.model_idx_table{
+            margin-left: auto;
+            margin-right: auto;
+            text-align: center;
+            border : 1px solid #66a3c1;
+            border-collapse : collapse;
+        }
+        th.model_idx_table {
+            color: #2efc00;
+        }
+        td.model_idx_table {
+            color: white;
+        }
+<!--        .model_desc h1{-->
+<!--            display:inline;-->
+<!--        }-->
+        .graph_canvas{
+            text-align: center;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .chart_div{
+            text-align: center;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .inner_gg_chart{
+<!--            아우터 div인 .chart_div 객체와 다르게 인식해 동시적용이 안되기 때문 display : inline-block 설정필요-->
+            display : inline-block;
+            text-align: center;
+        }
+        .coin_men_img {
+            border-radius: 50%;
+            overflow: hidden;
 
+        }
+        #word_btn {
+            text-align: center;
+            margin-left: auto;
+            margin-right: auto;
+        }
     </style>
 
 <!--    오늘 날짜 -->
-    <h1 style="color:#34e8ff;"> {{today_dt}} 기준 </h1>
+    <h1 style="text-align:center; color:#34e8ff;"> {{today_dt[:4]}}-{{today_dt[4:6]}}-{{today_dt[6:]}} 기준, 만든이 : 김진형 </h1>
 <!--    <script type="text/javascript" charset="utf-8" src="js/Chart.min.js"></script>-->
 <!--    <script type="text/javascript" charset="utf-8" src="js/Chart.roundedBarCharts.min.js"></script>-->
 </head>
 
 <body>
-<!--    <div class="chart-container2" style="position: relative; height:100vh; width:90vw">-->
-
-        <h1> 주간 요주 인물들 </h1>
-
-    <div class="coin_men">
-    {% for key, value in men_dict.items() %}
-        <img class="coin_men_img" src="../static/images/닉 재보.jpg", width={{value[0]}}, height={{value[0]}}, alt={{key}}/>
-    {% endfor %}
-    </div>
-<!--    {% for key, value in men_dict.items() %}-->
-<!--        <img id="coin_men_img" src="../static/images/{{key}}.jpg", width={{value[0]}}, alt={{key}}/>-->
-<!--    {% endfor %}-->
-<!--    -->
-
-
-    <canvas id="test1" width="1000" height="800"></canvas>
-    <br><br>
-    <canvas id="test2" width="1000" height="600"></canvas>
-    <br><br>
-    <canvas id="test3" width="1000" height="600"></canvas>
-    <br><br>
-    <div class="chart-container2">
-
-<!--        <canvas id="test2"></canvas>-->
-
-        <h1 style="color:#34e8ff;"><pre>                                      바이낸스 지표</pre></h1>
+<!--  1. 업비트, 바이낸스 양봉차트 및 지표  -->
+    <div class="chart_div">
+        <h1 style="color:#34e8ff;"><pre>바이낸스 지표</pre></h1>
 
         <div id="graph_btn_1">
         {% for x in bit_binance_gg_dict.지표컬럼%}
             <button class="btn_idx" id=bi_btn_{{loop.index}} value={{loop.index}}>{{x}}</button>
         {% endfor %}
-        <div id="chart_div"></div>
+<!--        그래프 바이낸스 구글차트 div-->
         </div>
+        <div class="inner_gg_chart" id="chart_div_1" style="display:inline-block;"></div>
         <br><br>
 
-        <h1 style="color:#34e8ff;"><pre>                                      업비트 지표</pre></h1>
+        <h1 style="color:#34e8ff;"><pre>업비트 지표</pre></h1>
         <div id="graph_btn_2">
             {% for x in bit_upbit_gg_dict.지표컬럼%}
                 <button class="btn_idx" id=up_btn_{{loop.index}} value={{loop.index}}>{{x}}</button>
             {% endfor %}
-            <div id="chart_div_2"></div>
+<!--        그래프 업비트 구글차트 div-->
         </div>
+        <div class="inner_gg_chart" id="chart_div_2" style="display:inline-block;"></div>
         <br><br>
-        <div id="word_btn">
-<!--        워드클라우드 날짜 버튼-->
-            {% for x in btn_dt_index %}
-                <button class="btn" id=btn_{{x}} value={{x}}>{{x}}</button>
-            {% endfor %}
-            <br><br>
-            <img id="img" src="../static/images/wordcloud_{{today_dt}}.jpg" width="400", height="400"/>
-<!--            <img id="img" src="{{ url_for('static', filename='images/wordcloud_20210705.jpg')}}" width="400", height="400"/>-->
-        </div>
     </div>
-<!--    함수 구문 -->
+<!-- 2. 모델 결과 지표 그래프 -->
+    <canvas style="text-align:center;" class="graph_canvas" id="model_chart" width="1000" height="600"></canvas>
+    <br>
 
+<!-- 3. 모델 결과 지표 테이블 -->
+<!--padding: 10px; width: 33%;-->
+    <div style="width:1400px; height:400px; display:flex; margin:0 auto; ">
+        <div class="model_desc" style="margin:0 auto; width:45%; ">
+                    <h1 style="color:#2efc00;"> 모델 설명 </h1>
+                    <span style="color:white; text-align:left;">
+                    독립변수 : 오늘의 비트코인 가격 및 각종 지표(RSI, 스팬, 이동평균 등) </br>
+                    타겟(종속변수) : 내일의 종가 </br>
+                    비트코인 데이터 수집 기간 : 2017/09/25 ~ 현재 </br>
+                    데이터 준비(시간적 순서에 따른 비율로 분할) => TRAIN(8) : TEST(2) </br></br>
+                    ○ 상세 요약 </br>
+                    머신러닝(SVM, Regression, Classifier등)보다 딥러닝 모델(DNN, LSTM)의 성능이 우수함</br>
+                    일반적인 머신러닝 모델은 학습된 범위내의 값들로만 예측가능하지만,</br>
+                    딥러닝 모델은 Input Data의 값에 따라 학습된 범위 밖의 값을 예측하는 것을 확인할 수 있음
+                    </span>
+        </div>
+
+<!--        <div style="text-align:center; display:inline;">-->
+        <table class="model_idx_table" style="margin:0 auto; width:45%; ">
+            <caption style="font-size:1.3em; color:#ffa159;"> 위의 그래프에 대한 모델별 결과 지표 테이블 </caption>
+                <tr class="model_idx_table">
+                    <th class="model_idx_table"> MODEL </th>
+                    <th class="model_idx_table"> MAE </th>
+                    <th class="model_idx_table"> MSE </th>
+<!--                    <th class="model_idx_table"> Accuary </th>-->
+                    <th class="model_idx_table"> 데이터_출처 </th>
+                </tr>
+                {% for key, value in model_idx_dict.items() %}
+                <tr class="model_idx_table">
+                    <td class="model_idx_table"> {{ key }} </td>
+                    <td class="model_idx_table"> {{ value[0] }} </td>
+                    <td class="model_idx_table"> {{ value[1] }} </td>
+<!--                    <td class="model_idx_table"> {{ value[2] }}% </td>-->
+                    <td class="model_idx_table"> {{ value[3] }} </td>
+                </tr>
+                {% endfor %}
+
+        </table>
+<!--        </div>-->
+    </div>
+    <br><br>
+
+<!-- 4. 일별 코인별 긍부정 지수 -->
+    <canvas style="text-align:center;" class="graph_canvas" id="test1" width="1000" height="800"></canvas>
+    <br><br>
+<!-- 5. 주간 알트코인별 점유율 -->
+    <canvas style="text-align:center;" class="graph_canvas" id="test2" width="1000" height="600"></canvas>
+    <br><br>
+<!-- 6. 일별로 보는 비트코인(바이낸스)에 대한 긍부정 지수 -->
+    <canvas style="text-align:center;" class="graph_canvas" id="test3" width="1000" height="600"></canvas>
+    <br><br>
+
+
+<!-- 7. 주간 요주 인물 점유율-->
+    <table class="men_table">
+         <h1 style="text-align:center; color:#ffa159;"> 주간 요주 인물 점유율 TOP3 </h1>
+        <tr>
+        {% for key, value in men_dict.items() %}
+            <td>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                <img class="coin_men_img" src="../static/images/{{key}}.jpg", width={{value[0]}}, height={{value[0]}}, alt={{key}} />
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                <h2 style="text-align:center; color:#ffa159;"> {{key}}  {{value[1]}}% </h2>
+            </td>
+        {% endfor %}
+        </tr>
+    </table>
+
+<!-- 8. 워드 클라우드-->
+    <div id="word_btn">
+        <h1 style="color:#ffa159;"><pre>워드 클라우드</pre></h1>
+<!--        워드클라우드 날짜 버튼-->
+        {% for x in btn_dt_index %}
+            <button class="btn" id=btn_{{x}} value={{x}}>{{x}}</button>
+        {% endfor %}
+
+        <br><br>
+        <img id="img" src="../static/images/wordcloud_{{today_dt}}.jpg" width="400", height="400"/>
+<!--            <img id="img" src="{{ url_for('static', filename='images/wordcloud_20210705.jpg')}}" width="400", height="400"/>-->
+    </div>
+
+<!--    다양한 함수 구문 -->
         <script type="text/javascript">
 
 
@@ -134,7 +237,7 @@
 
             // 양봉 및 차트 데이터 이벤트
             $(document).ready(function(){
-                // 그래프 지표 활성/비활성 배열
+                // 4,5. 그래프 지표 활성/비활성 배열
                 var bi_gg_dict = {{bit_binance_gg_dict|tojson}};
                 var up_gg_dict = {{bit_upbit_gg_dict|tojson}};
 
@@ -153,25 +256,35 @@
 
 
                 // 구글 차트 지수 데이터(스코어_SCALING,RSI_3,RSI_7,RSI_14,전환선,기준선,선행스팬1,선생스팬2,후행스팬)
-                var bi_index_data = bi_gg_dict.index_data; // 바이낸스 지수 데이터
+                var bi_index_data = bi_gg_dict.index_data; // 바이낸스 지표 데이터
                 var bi_index_col_len = bi_index_data[0].length; // 바이낸스 지표 데이터 열 건수
                 var bi_idx_arr = new Array(); // 지표 컬럼 추가 및 제거를 위한 배열 생성
                 bi_idx_arr.length = bi_index_col_len;
                 bi_idx_arr.fill('',0,bi_idx_arr.length); // 바이낸스 지표 인덱스 수 만큼 '' 값으로 채워줌
+                var bi_dict = {}; // 축기준 딕셔너리 선언
+                for(let i = 5; i < bi_index_col_len+5; i++) {
+                    bi_dict[i] = 0;
+                }
 
                 console.log('컬럼및위치정보 배열 : ',bi_idx_arr);
                 console.log('컬럼및위치정보 배열 길이 : ',bi_idx_arr.length);
                 console.log('지수 데이터 열 건수 : ',bi_index_col_len);
 
-                var up_index_data = bi_gg_dict.index_data; // 업비트 지수 데이터
+                var up_index_data = up_gg_dict.index_data; // 업비트 지표 데이터
                 var up_index_col_len = up_index_data[0].length; // 업비트 지표 데이터 열 건수
                 var up_idx_arr = new Array(); // 지표 컬럼 추가 및 제거를 위한 배열 생성
                 up_idx_arr.length = up_index_col_len;
                 up_idx_arr.fill('',0,up_idx_arr.length); // 업비트 지표 인덱스 수 만큼 '' 값으로 채워줌
+                var up_dict = {}; // 축기준 딕셔너리 선언
+                for(let i = 5; i < up_index_col_len+5; i++) {
+                    up_dict[i] = 0;
+                }
+
 
                 console.log('컬럼및위치정보 배열 : ',up_idx_arr);
                 console.log('컬럼및위치정보 배열 길이 : ',up_idx_arr.length);
                 console.log('지수 데이터 열 건수 : ',up_index_col_len);
+
 
 
                 //////////////////////////////////// 함수 선언부 //////////////////////////////////////
@@ -240,7 +353,21 @@
 
                         console.log('########### 바이낸스 결과 #########');
                         console.log('바이낸스 지표컬럼 배열 :',bi_idx_arr);
-                        gg_chart(candle_data=bi_candle_data, chart_div='chart_div');
+                        for(let i = 5; i < bi_index_col_len+5; i++) {
+                                            bi_dict[i] = 0;
+                                        }
+                        for(let i = 0; i < bi_index_col_len; i++) {
+                            if (bi_idx_arr[i] !== ''){
+                                    if (i < 5){ // 인덱스 5보다 작으면 축기준 : 0
+                                        bi_dict[bi_idx_arr[i]] = 0;
+                                    } else { // 인덱스 5이상 축기준 : 1
+                                        bi_dict[bi_idx_arr[i]] = 1;
+                                    }
+                            }
+                        } // for문
+
+
+                        gg_chart(candle_data=bi_candle_data, chart_div='chart_div_1', axis_dict=bi_dict);
                     } else {
                         console.log('##########업비트쪽 버튼 클릭###########')
                         var up_idx_r = $(this).val()-1;
@@ -252,174 +379,67 @@
 
                         console.log('########### 업비트 결과 #########');
                         console.log('업비트 지표컬럼 배열 :',up_idx_arr);
-                        gg_chart(candle_data=up_candle_data, chart_div='chart_div_2');
+                        console.log('업비트 지표컬럼 배열클릭');
+                        for(let i = 5; i < up_index_col_len+5; i++) {
+                                            up_dict[i] = 0;
+                                        }
+                        for(let i = 0; i < up_index_col_len; i++) {
+                            if (up_idx_arr[i] !== ''){
+                                    if (i < 5){ // 인덱스 5보다 작으면 축기준 : 0
+                                        up_dict[up_idx_arr[i]] = 0;
+                                    } else { // 인덱스 5이상 축기준 : 1
+                                        up_dict[up_idx_arr[i]] = 1;
+                                    }
+                            }
+                        } // for문
+
+
+                        console.log(up_dict);
+                        console.log(up_dict[5]);
+
+                        gg_chart(candle_data=up_candle_data, chart_div='chart_div_2', axis_dict=up_dict);
                     }
 
 
                     console.log('수정 과정끝!');
                 });
 
-            gg_chart(candle_data=bi_candle_data, chart_div='chart_div');
-            gg_chart(candle_data=up_candle_data, chart_div='chart_div_2');
+            gg_chart(candle_data=bi_candle_data, chart_div='chart_div_1', axis_dict=bi_dict);
+            gg_chart(candle_data=up_candle_data, chart_div='chart_div_2', axis_dict=up_dict);
             console.log('기본 과정끝!');
             });
 
         </script>
 
-<!-- 1.   Chart.js : 일별 코인별 긍부정 지수 막대 차트 -->
+        // 차트에 필요한 데이터 선언
         <script>
+            // Flask를 통해 py에서 html로 객체를 주고 받는 tojson함수는 다른 jsp에서 실행할 경우 sytax 에러가 뜬다.
+
+            // 1번 차트 : 일별 코인별 긍부정 스코어
             var to_dict = {{to_dict|tojson}};
-            var ctx = document.getElementById('test1').getContext('2d');
-            var chart = new Chart(ctx, {
-<!--                // The type of chart we want to create-->
-                type: 'horizontalBar',
-<!--                // The data for our dataset-->
-                data: {
-                        labels: to_dict.코인명,
-                        datasets: [{ label: '긍정 지수',
-                                       backgroundColor: 'rgba(0, 233, 214, 1)'
-                                       , borderColor: 'rgba(0, 233, 214, 0.46)'
-    <!--                                        긍정 스코어 리스트 -->
-                                               , data: to_dict.스코어_긍정 },
-
-                                       { label: '부정 지수',
-                                       backgroundColor: 'rgba(255, 112, 53, 1)'
-                                       , borderColor: 'rgba(255, 112, 53, 0.41)'
-
-    <!--                                        긍정 스코어 리스트 -->
-                                               , data: to_dict.스코어_부정 }
-                                   ]
-                       },
-
-
-
-<!--                    // Configuration options go here-->
-                options: { responsive : false
-                        , title: { display: true, text: '오늘의 코인별 긍정 및 부정 지수', fontSize: 30, fontColor: '#34e8ff'}
-                        , indexAxis : 'y'
-                        , cornerRadius: 20
-                        , legend: { labels: { fontColor: 'white', fontSize: 12 } }
-                        , scales: { xAxes: [{ ticks: {fontColor: '#1de282', fontSize: '12' } }]
-                        , yAxes: [{ ticks: { beginAtZero: true, fontColor: '#34e8ff', fontSize: '12' } }] } } });
-        </script>
-<!-- 2.   Chart.js : 주간 코인별 점유율 차트 -->
-        <script>
+            // 2번 차트 : 주간 코인별 점유율
             var alt_dict = {{alt_dict|tojson}};
-            var ctx = document.getElementById('test2').getContext('2d');
-            var chart = new Chart(ctx, {
-<!--                // The type of chart we want to create-->
-                type: 'horizontalBar',
-<!--                // The data for our dataset-->
-                data: {
-                        labels: alt_dict.코인명,
-                        datasets: [{ label: '점유율',
-                                       backgroundColor: 'rgba(0, 233, 214, 1)'
-                                       , borderColor: 'rgba(0, 233, 214, 0.46)'
-    <!--                                        긍정 스코어 리스트 -->
-                                               , data: alt_dict.점유율 },
-
-
-                                   ]
-                       },
-
-
-
-<!--                    // Configuration options go here-->
-                options: { responsive : false
-                        , title: { display: true, text: '주간 알트코인 점유율', fontSize: 30, fontColor: '#34e8ff'}
-                        , indexAxis : 'y'
-                        , cornerRadius: 20
-                        , legend: { labels: { fontColor: 'white', fontSize: 12 } }
-                        , scales: { xAxes: [{ ticks: {fontColor: '#1de282', fontSize: '12' } }]
-                        , yAxes: [{ ticks: { beginAtZero: true, fontColor: '#34e8ff', fontSize: '12' } }] } } });
-        </script>
-
-
-<!-- 2.   Chart.js : 긍부정 지수 및 종가(일별) SCALING 차트 -->
-        <script>
+            // 3번 차트 : 긍부정 스코어 지수 SCALING
             var bit_dict = {{bit_dict|tojson}};
-            var bit_info_dict = {{bit_binance_dict|tojson}};
-            var ctx = document.getElementById('test3').getContext('2d');
-            var chart = new Chart(ctx, {
-<!--                // The type of chart we want to create-->
-                type: 'line',
-<!--                // The data for our dataset-->
-                data: {
-                        labels: bit_dict.등록시간,
-                        datasets: [{ label: '긍부정 지수',
-                                       backgroundColor: 'rgba(82, 255, 200, 0.3)'
-                                       , borderColor: 'rgba(82, 255, 200, 1.5)'
-    <!--                                        스코어 합계 리스트 -->
-                                               , data: bit_dict.스코어_SCALING },
-                                    { label: '종가 지수',
-                                       backgroundColor: 'rgba(247, 58, 73, 0.3)'
-                                       , borderColor: 'rgba(247, 58, 73, 1.5)'
-    <!--                                        긍정 스코어 리스트 -->
-                                               , data: bit_info_dict.종가_SCALING }
-
-                                   ]
-                       },
-<!--                    // Configuration options go here-->
-                options: {  responsive : false
-                        , title: { display: true, text: '일별로 보는 비트코인에 대한 긍부정 지수'
-                        , fontSize: 30, fontColor: '#34e8ff' }
-                        , legend: { labels: { fontColor: 'white', fontSize: 10 } }
-                        , scales: { xAxes: [{ ticks: { fontColor: '#1de282', fontSize: '10' } }]
-                        , yAxes: [{ ticks: { beginAtZero: true, fontColor: '#34e8ff', fontSize: '15' } }] } } });
+            // 3번 차트 : 일별 종가 SCALING
+            var bit_binance_dict = {{bit_binance_dict|tojson}};
+            // 5번 차트 : 일별 실제값, 예측값 종가 차트
+            var bit_score_dict = {{bit_score_dict|tojson}};
         </script>
-<!-- 3.   구글 차트 : 긍부정 지수 및 바이낸스 일봉 차트 -->
-        <script type="text/javascript">
-              function gg_chart(candle_data, chart_div) {
-              google.charts.load('current', {'packages':['corechart']});
-              google.charts.setOnLoadCallback(drawChart);
-              console.log('진짜진짜 들어갈 데이터 : ',candle_data);
-              idx_len = candle_data[0].length - 5;
-              var chk = chart_div;
-              if (chart_div === 'chart_div') {
-                var content = '바이낸스 일봉차트';
-              } else {var content = '업비트 일봉차트';}
 
-              function drawChart() {
-                var data = google.visualization.arrayToDataTable(
-                candle_data
-                );
+<!-- 1.   Chart.js : 일별 코인별 긍부정 지수 막대 차트 -->
+        <script src="../static/js/daily_coin_pn_idx_chart.js"></script>
 
-                var options = {
-                  'title':'긍부정 지수 '+content,
-                  'width':1200,
-                  'height':500,
-                  hAxis:{
-                    textStyle:{color : '#1de282'}
-                  },
-                  backgroundColor:'#202b38',
-                  legend:'right',
-        <!--          주 그래프 타입-->
-                  seriesType:'candlesticks',
-        <!--          서브 그래프 타입-->
-                  series:{
-                        1 : {type : 'line'},
-                        2 : {type : 'line'},
-                        3 : {type : 'line'},
-                        4 : {type : 'line'},
-                        5 : {type : 'line'},
-                        6 : {type : 'line'},
-                        7 : {type : 'line'},
-                        8 : {type : 'line'},
-                        9 : {type : 'line'},
-                  },
-                  vAxis: {viewWindowMode:'explicit',
-                          viewWindow: {
-                                          max : 1,
-                                          min : -1
-                    },
-                    textStyle:{color : '#34e8ff'}
-                    }
+<!-- 2.   Chart.js : 주간 코인별 점유율 차트 -->
+        <script src="../static/js/weekly_coin_op_idx_chart.js"></script>
 
-                };
-                var chart = new google.visualization.ComboChart(document.getElementById(chart_div));
-                chart.draw(data, options);
-              }
-              }
-        </script>
+<!-- 3.   Chart.js : 긍부정 지수 및 종가(일별) SCALING 차트 -->
+        <script src='../static/js/daily_pn_close_idx_chart.js'></script>
+
+<!-- 4, 5. 구글 차트 : 업비트, 바이낸스 일봉 차트 -->
+        <script src='../static/js/daily_chart.js'></script>
+
+<!-- 6. Chart.js : 업비트 일별 실제값, 예측값 종가 차트 -->
+        <script src='../static/js/model_chart.js'></script>
 </body>
 </html>

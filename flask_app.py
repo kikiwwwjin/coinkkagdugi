@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import datetime
 import os
-from sklearn.preprocessing import MinMaxScaler, MaxAbsScaler
+from sklearn.preprocessing import MaxAbsScaler
 app = Flask(__name__)
 
 # 경로 설정 위치 고정 필요
@@ -33,8 +33,13 @@ f_list, coin_nm_list, coin_jud_dict, prd_nm_list, prd_jud_dict, fin_nm_list, bit
 dt = datetime.datetime.today()
 dt = dt.strftime('%Y%m%d')
 
+
 # 워드클라우드 버튼 기간 설정(일주일전 ~ 현재, 서버는 9시간 전 고려)
 bf_dt = (datetime.datetime.today() - datetime.timedelta(days=7)).strftime('%Y%m%d')
+
+bf_dt = '20210902'
+dt = '20210909'
+
 btn_dt_index = pd.date_range(start=bf_dt,end=dt).map(lambda x : str(x).replace(' 00:00:00', ''))
 
 @app.route('/')
@@ -116,18 +121,20 @@ def chart():
     # 주간 인물별 빈도수 합계 => 상위 3명 추출
     men_df = men_df.groupby(['명사']).sum().reset_index().sort_values(['COUNT'], ascending=False)
     men_df = men_df.iloc[:3]
-    men_df['점유율'] = str(men_df['COUNT'] / men_df['COUNT'].sum() * 100) + '%'
+    men_df['점유율'] = np.round((men_df['COUNT'] / men_df['COUNT'].sum())*100)
+    print(men_df['점유율'])
 
     # 딕셔너리(JSON) 타입으로 변경
     men_dict = dict()
     cnt = 0
     for name, ocp_rt in zip(men_df['명사'], men_df['점유율']):
+        print(name, ocp_rt)
         img_size = str(400 - cnt*100)
         print('사진 크기 :',img_size)
         men_dict[name] = [img_size, ocp_rt]
         cnt = cnt + 1
 
-    print('#' * 150 + '\n', '코인 관련 인물별 점유율 지수 데이터(주간 기준) \n', men_dict.keys(), '\n 건수 :', len(men_dict),
+    print('#' * 150 + '\n', '코인 관련 인물별 점유율 지수 데이터(주간 기준) \n', men_dict.keys(), '\n 건수 :', men_dict, len(men_dict),
           '\n' + '#' * 150)
 
 
@@ -146,67 +153,115 @@ def chart():
     # for문 출처 binance, upbit 에 따른 구분
     coin_firm = ['binance', 'upbit'] # 출처 구분
     for firm in coin_firm:
+        print(firm)
         # 출처에 따른 데이터 추출
         bit_firm_df = bit_info_df[bit_info_df['출처'] == firm]
-        gg_col_list = [x for x in bit_firm_df.columns if x not in ['저가','오픈','종가','고가','거래량','출처']]
-        # 컬럼 재배열 후 리스트 생성
-        gg_chart_df = bit_firm_df[gg_col_list]
-        col_list = list(gg_chart_df.columns)[:5] # 5열까지 : 등록시간,저가_SCALING,오픈_SCALING,종가_SCALING,고가_SCALING
-        candle_list = ['일봉차트' if x == '저가_SCALING' else x for x in col_list]
+
+        # '종가' 컬럼만 SCAILING => 30일 기준(일별로 보는 비트코인에 대한 긍부정 지수 차트)
+        ma_scaler = MaxAbsScaler()
+        avg_value = np.nanmean(bit_firm_df['종가'].values)
+        ma_scaler.fit(np.array(bit_firm_df['종가'] - avg_value).flatten().reshape(-1, 1))
+        scale_data = ma_scaler.transform(np.array(bit_firm_df['종가'] - avg_value).flatten().reshape(-1,1))
+        bit_firm_df['종가_SCALING'] = scale_data
+
+        # 양봉 컬럼('등록시간','저가','오픈','종가','고가') 정의
+        candle_col_list = ['등록시간','저가','오픈','종가','고가']
+        # 지표 컬럼(종가_SCALING, RSI_3, RSI_7, RSI_14, 기준선, 전환선, 선행스팬_1, 선생스팬_2, 후행스팬, 스코어_SCALING) 정의
+        temp_list = ['거래량','출처']
+        temp_list.extend(candle_col_list) # 양봉 컬럼 + 거래량, 출처 컬럼
+        idx_col_list = [x for x in bit_firm_df.columns if x not in temp_list] # 지표 컬럼
+
+        # 캔들 차트를 위한 컬럼 Numpy화
+        candle_list = ['일봉차트' if x == '저가' else x for x in candle_col_list]
         candle_list = [candle_list]
-        # 구글 차트에 저가_SCALING 으로 표현되는 legend(차례) 변경
 
+        # google chart 입력 순서(저가, 시가, 종가, 고가) Numpy 화 => 양봉차트를 위한 등록시간 및 양봉 데이터 컬럼
+        candle_list.extend(np.array(bit_firm_df[candle_col_list]).tolist())
+        print('양봉 데이터 candle_list : ', candle_list)
 
-        # google chart 입력 순서(저가, 시가, 종가, 고가) => 양봉차트를 위한 데이터와 날짜 컬럼
-        candle_list.extend(np.array(bit_firm_df[col_list]).tolist())
-        print('candle_list : ', candle_list)
-
-        # 지표 컬럼 및 데이터 리스트 생성
-        col_list = list(gg_chart_df.columns)[5:] # 지표 컬럼 리스트 추출
-        index_list = [col_list]
+        # 지표 데이터 리스트 생성
+        gg_chart_df = bit_firm_df[idx_col_list]  # 지표 컬럼만 추출한 데이터 프레임
+        idx_list = [idx_col_list]
         # google chart 지표를 나타내는 선을 위한 index
-        index_list.extend(np.array(bit_firm_df[col_list]).tolist())
+        idx_list.extend(np.array(bit_firm_df[idx_col_list]).tolist())
+        print('지수 데이터 idx_list : ', idx_list)
 
-        # 딕셔너리 선언
+        # 일별로 보는 비트코인에 대한 긍부정 지수(바이낸스 기준) : 딕셔너리 선언
         globals()['bit_'+firm+'_dict'] = dict({
                             '등록시간' : list(bit_firm_df['등록시간']),
-                            '종가' : list(bit_firm_df['종가']),
-                            '오픈' : list(bit_firm_df['오픈']),
-                            '고가' : list(bit_firm_df['고가']),
-                            '저가' : list(bit_firm_df['저가']),
-                            '종가_SCALING': list(bit_firm_df['종가_SCALING']),
-                            '오픈_SCALING': list(bit_firm_df['오픈_SCALING']),
-                            '고가_SCALING': list(bit_firm_df['고가_SCALING']),
-                            '저가_SCALING': list(bit_firm_df['저가_SCALING']),
-                            '거래량' : list(bit_firm_df['거래량']),
-                            # '변동' : list(bit_firm_df['변동']),
-                            # 'RSI_3' : list(bit_firm_df['RSI_3']),
-                            # 'RSI_7': list(bit_firm_df['RSI_7']),
-                            # 'RSI_14': list(bit_firm_df['RSI_14']),
+                            '종가_SCALING': list(bit_firm_df['종가_SCALING']), # 사용
                             '전체건수' : len(bit_firm_df),
-
         })
-
+        
+        # 바이낸스 및 업비트 지표
         globals()['bit_'+firm+'_gg_dict'] = {
             'candle_data' : candle_list,
-            'index_data' : index_list,
-            '최대값': 1,
-            '최소값': -1,
-            '지표컬럼': col_list,
+            'index_data' : idx_list,
+            '지표컬럼': idx_col_list
         }
 
         print('#' * 150 + '\n', '코인별 긍부정 지수(오늘 기준) \n', globals()['bit_'+firm+'_dict'].keys(), '\n 건수 :', len(globals()['bit_'+firm+'_dict']), '\n' + '#' * 150)
         print('#' * 150 + '\n', '코인별 긍부정 지수(오늘 기준) \n', globals()['bit_'+firm+'_gg_dict'].keys(), '\n 건수 :', len(globals()['bit_'+firm+'_gg_dict']), '\n' + '#' * 150)
 
+    ### 코인 일별 종가 예측 결과 데이터 ###
+    bit_score_df = pd.read_csv(file_csv_path + 'score_data_' + dt + '.csv', encoding='cp949',
+                              dtype='str')
+
+
+    bit_score_df = bit_score_df[['등록시간', 'target', '전통모델_pred', 'DNN_pred', 'LSTM_pred']]
+    dt_max = bit_score_df['등록시간'].max()
+    next_dt = datetime.datetime.strptime(dt_max, '%Y%m%d') + datetime.timedelta(days=1)
+    next_dt = next_dt.strftime('%Y%m%d')
+    bit_score_df['등록시간'] = bit_score_df['등록시간'].shift(-1)
+    bit_score_df['등록시간'] = bit_score_df['등록시간'].fillna(next_dt)
+    bit_score_df.rename(columns={'target' : '종가'}, inplace=True) # 'TARGET' 컬럼명을 '종가' 로 변경
+
+    # 컬럼 타입 정의
+    col_type_dict = dict()
+    for x in bit_score_df.columns:
+        if x in ['등록시간', '출처']:
+            col_type_dict[x] = 'str'
+        else:
+            col_type_dict[x] = 'float'
+    bit_score_df = bit_score_df.astype(col_type_dict)  # 컬럼 타입 변경
+
+    # 딕셔너리(JSON) 타입으로 변경
+    bit_score_dict = dict({'등록시간': list(bit_score_df['등록시간']),
+                     '종가': list(bit_score_df['종가']),
+                     '전통모델_예측값': list(bit_score_df['전통모델_pred']),
+                     'DNN_예측값': list(bit_score_df['DNN_pred']),
+                     'LSTM_예측값': list(bit_score_df['LSTM_pred'])
+                     })  # 코인 및 상품리스트
+    print('#' * 150 + '\n', '일별 종가 실제값 및 예측값\n', bit_score_dict.keys(), '\n 건수 :', len(bit_score_dict['등록시간']),
+          '\n' + '#' * 150)
+
+    # 코인 일별 종가 예측 결과 데이터
+    model_idx_df = pd.read_csv(file_csv_path + 'model_idx_result_' + dt + '.csv', encoding='cp949',
+                               dtype='str')
+    # 컬럼 타입 정의
+    col_type_dict = dict()
+    for x in model_idx_df.columns:
+        if x in ['Model', '출처']:
+            col_type_dict[x] = 'str'
+        else:
+            col_type_dict[x] = 'float'
+    model_idx_df = model_idx_df.astype(col_type_dict)  # 컬럼 타입 변경
+
+    model_idx_dict = dict()
+    for x in model_idx_df.iterrows():
+        print(x[1].Model)
+        model_idx_dict[x[1].Model] = [round(x[1].MAE), round(x[1].MSE), round(x[1].Accuracy*100), x[1].출처]
+
+    print('#' * 150 + '\n', '일별 종가 실제값 및 예측값\n', model_idx_dict.keys(), '\n 건수 :', len(model_idx_dict),
+          '\n' + '#' * 150)
+
     # return to_dict, bit_dict, bit_binance_dict, bit_binance_gg_dict, bit_upbit_dict, bit_upbit_gg_dict
     return render_template('chart_js.html',to_dict=to_dict,bit_dict=bit_dict, btn_dt_index=btn_dt_index, today_dt=dt
                           ,alt_dict=alt_dict, men_dict=men_dict
                           ,bit_binance_dict=bit_binance_dict, bit_binance_gg_dict=bit_binance_gg_dict
-                          ,bit_upbit_dict=bit_upbit_dict, bit_upbit_gg_dict=bit_upbit_gg_dict)
+                          ,bit_upbit_dict=bit_upbit_dict, bit_upbit_gg_dict=bit_upbit_gg_dict
+                          ,bit_score_dict=bit_score_dict, model_idx_dict=model_idx_dict)
 
 if __name__=='__main__':
     app.run()
-
-
-
 

@@ -30,7 +30,6 @@ import webbrowser
 # import seaborn as sns
 # import matplotlib.pyplot as plt
 
-
 # 업비트 및 바이낸스 관련 패키지
 import ccxt
 import pyupbit
@@ -47,6 +46,9 @@ import tensorflow as tf
 from keras.utils.np_utils import to_categorical # DNN
 from keras import models # DNN
 from keras import layers # DNN
+
+# 결과 지표 산출 패키지
+from sklearn.metrics import mean_absolute_error, mean_squared_error
 
 
 ##############################################################################################
@@ -77,11 +79,9 @@ print('기본 경로 :', file_path)
 print('CSV 파일 경로 :', file_csv_path)
 print('이미지 파일 경로 :', file_image_path)
 
-
 #####################################################################
-# 1. investing.com(암호화폐 뉴스 url) 크롤링 함수
+# 1. investing.com(암호화폐 뉴스 url) 크롤링 함수 => 날짜 수집 30일
 # bs4, request 함수로는 BAN 처리 당함 => 셀레니움만 가능
-
 def investing_crawling(p_file_path):
     main_url = 'https://kr.investing.com/news/cryptocurrency-news/'
     print(p_file_path + 'chromedriver.exe')
@@ -110,55 +110,82 @@ def investing_crawling(p_file_path):
     except:
         print('팝업창 없음')
     time.sleep(0.5)
-    # 배치 주기(일별) => 오늘 날짜인 것만 크롤링, 사이트는 최신순으로 자동정렬
-    dt_list = soup.find('div', {'class': 'largeTitle'}).find_all('span', {'class': 'date'})
-    connect_cnt = sum(list(map(lambda x: 1 if str(x).find('전') != -1 else 0, dt_list)))
+
+    # 현재날짜 기준 30일보다 더 이전의 게시글이 존재할때 크롤링 for문 Break
+    today_dt = datetime.datetime.today()
+    ds = today_dt - datetime.timedelta(days=30)  # 30일 전날짜
+    today_dt = today_dt.strftime('%Y%m%d')
+    bf_dt = ds.strftime('%Y%m%d')
 
     # 오늘 날짜로 등록된 기사가 첫페이지의 전체이면 다음페이지도 오늘 날짜 기사를 확인해야함
-    page_no = 1  # 크롤링 할 페이지 수크롤링 페이지 번호
-    while connect_cnt == len(dt_list):
+    page_no = 0  # 크롤링 할 페이지 수크롤링 페이지 번호
+    stop_flag = True
+    stop_now_flag = True
+    while stop_flag:
         # 특정 페이지의 오늘 날짜 기사 건수 확인
         page_no += 1
         print('페이지 번호 :', page_no)
         driver.get(main_url + str(page_no))  # 다음페이지 url 접속
-        dt_list = soup.find('div', {'class': 'largeTitle'}).find_all('span', {'class': 'date'})
-        connect_cnt = sum(list(map(lambda x: 1 if str(x).find('전') != -1 else 0, dt_list)))
-        print(page_no, '페이지 전체 건수 :', len(dt_list), ', 오늘 날짜 기사 건수 :', connect_cnt)
+        time.sleep(1)
+        # 페이지 소스 정보 => beautiful soup로 전환
+        html = driver.page_source
+        soup = BeautifulSoup(html, 'html.parser')
 
-    # 크롤링 코드
+        dt_list = soup.find('div', {'class': 'largeTitle'}).find_all('span', {'class': 'date'}) # 해당 페이지의 게시글 날짜리스트 수집
+        dt_list = [today_dt if (x.text.find('시간') != -1) | (x.text.find('분') != -1) | (x.text.find('방금') != -1)
+                   else re.sub('[^A-Za-z0-9가-힣↑↓]', '', x.text.replace('년', '').replace('월', '').replace('일', '')) for x in dt_list]
 
-    for no in range(1, page_no + 1):  # 페이지 번호 기준
+        # 30일 전보다 과거의 날짜가 있을시 Break
+        dt_array = np.array(list(map(lambda x : int(x), dt_list)))
+
+        # 특정 페이지에 있는 각 기사 정보 추출
+        news_list = soup.find('div', {'class': 'largeTitle'}).find_all('div', {'class': 'textDiv'})
+
+        # 30일 이전 등록기사가 존재할 때
+        if min(dt_array) < int(bf_dt):
+            print('30일보다 더 과거의 날짜 기사 :',min(dt_list),', Break!!!')
+            stop_flag = False
+            t_idx = np.where(dt_array < int(bf_dt))[0][0]
+            if t_idx > 0:
+                news_list = news_list[:t_idx]
+            else:
+                # 더이상 크롤링 대상 기사가 없음
+                print('## 더이상 크롤링 수집 기간에 해당하는 기사가 없습니다. ##')
+                stop_now_flag = False
+
+        # 크롤링 즉시 중단 플래그
+        if stop_now_flag == False:
+            print('### CRAWLING NOW STOP FLAG FALSE ###')
+            print('### 크롤링 즉시 종료 ###')
+            break
+
+
+
+        print('페이지 번호 :', page_no, ', 크롤링 대상 기사 건수 :', len(news_list))
+        print('#' * 80)
         # 딕셔너리 선언
         news_dict = dict()
         news_dict['title'] = list()  # 기사 제목
         news_dict['reg_date'] = list()  # 등록일자
         news_dict['content'] = list()  # 기사 내용
 
-        print('#' * 80)
-        print('크롤링 페이지 번호 :', no)
-        driver.get(main_url + str(no))  # 특정페이지 url 접속
-        time.sleep(2.5)
-
-        # 특정 페이지에 있는 각 기사 정보 추출
-        news_list = soup.find('div', {'class': 'largeTitle'}).find_all('div', {'class': 'textDiv'})
-
-        # 마지막 페이지에서 오늘 날짜 기사만 크롤링
-        if page_no == no: # page_no => 마지막 페이지, no => 현재 페이지
-            news_list = news_list[:connect_cnt] # 마지막 페이지의 오늘 날짜인 기사만 추출(최신순, 건수로 적용ㄴ)
-
-        print('크롤링 기사 건수 :', len(news_list))
         check_no = 0
         for news in news_list:
             check_no += 1
             print('기사 순번 ===>',check_no,'/',len(news_list))
             # 출처 사이트 => 'MK 부터' => 매일 경제 홈페이지 url로 직접 접속
             news_url = news.find('a',{'class':'title'}).get('href')
-            ref_site = news.find('span',{'class':'articleDetails'}).find('span').text
+            # 태그가 div 또는 span 형태로 존재
+            try:
+                ref_site = news.find('span',{'class':'articleDetails'}).find('span').text
+            except:
+                ref_site = news.find('div', {'class': 'articleDetails'}).find('span').text
+
             if ref_site == '부터 MK':
                 print('출처 ==> 매일경제')
                 driver.get(news_url)
-            elif ref_site == '부터 Investing.com Studios':
-                print('파트너사 뉴스 => 제외')
+            elif ref_site == '부터 Investing.com Studios' or ref_site == '부터 asiae':
+                print('파트너사 뉴스 또는 asiae 뉴스 => 제외')
                 continue
             else:
                 print('investing 자체 url로 접속')
@@ -173,7 +200,8 @@ def investing_crawling(p_file_path):
             news_dict['title'].append(title)
             # 날짜 포맷 : 7 시간 전 (0000년 00월 00일 01:39) => YYYY-mm-dd %HH:%MM:%SS(년-월-일 시-분-초)
             reg = soup.find('div', {'class': 'contentSectionDetails'}).find('span').get_text()
-            reg = reg.split('(')[1].replace(')', '')
+            if (reg.find('시간') != -1) | (reg.find('분') != -1) | (reg.find('초') != -1):
+                reg = reg.split('(')[1].replace(')', '')
             reg = datetime.datetime.strptime(reg, '%Y년 %m월 %d일 %H:%M').strftime('%Y-%m-%d %H:%M:%S')
             news_dict['reg_date'].append(reg)
             # 기사 내용
@@ -274,33 +302,47 @@ def naver_crawling(p_file_path):
                 # 뉴시스
                 if firm_nm == '뉴시스':
                     for news in news_info:
-                        # print(news)
+                        print(news)
                         # 해당 뉴스 링크로 접속
                         link = news.find('a', {'class': 'news_tit'}).get('href')
                         article_info = requests.get(link)
                         time.sleep(0.5)
                         article_html = BeautifulSoup(article_info.text, 'html.parser')
+
+
                         # 뉴스 기사 제목
-                        title = article_html.find('div', {'class': 'article_tbx'}).find('h1').get_text()
+                        title = article_html.find('div', {'class': 'top'}).find('p').get_text()
                         title = re.sub('[^A-Za-z0-9가-힣↑↓]', '', title)
                         news_dict['title'].append(title)  # 기사 제목 담기
 
                         # 등록날짜
-                        reg = article_html.find('div', {'class': 'date'}).get_text()
+                        reg = article_html.find('div', {'class': 'infoLine'}).find('span').get_text()
                         if reg.find('|') != -1:
                             reg = reg.split('|')[0]
                         reg = reg.replace('등록', '').replace('/','-').replace(u'\xa0','').strip() # 등록일시 추출
                         news_dict['reg_date'].append(reg)
 
                         # 기사내용
-                        content_info = article_html.find('div', {'id': 'textBody'}).text
-                        content_info = re.sub('[^A-Za-z0-9가-힣↑↓\n]', '', content_info)
-                        ctt_list = content_info.split('\n')
-                        ctt_list = [x for x in ctt_list if x != '']  # 줄바꿈 생략
-                        news_dict['content'].append(ctt_list)
+                        cons_list = article_html.text.split('\n')
+                        article_list = list()
+                        article_flag = False
+                        for cons in cons_list:
+                            if cons.find('[서울=뉴시스]') != -1:
+                                article_flag = True
+                            elif cons.find('공감언론 뉴시스') != -1:
+                                article_flag = False
+
+                            # aritcle_flag : 기사 내용 여부(TRUE : 기사내용 , False : 기사 외 다른 내용)
+                            if article_flag:
+                                print('기사 내용 :', cons)
+                                cons = re.sub('[^A-Za-z0-9가-힣↑↓\n]', '', cons) # 에러 발생 특수문자 제거
+                                article_list.append(cons)
+
+                        article_list = [x for x in article_list if x not in ['\r', '']] # '\r' or '' 는 리스트 요소에서 제거
+                        news_dict['content'].append(article_list)
 
                         # 확인용 출력
-                        print(firm_nm, ', 기사 제목 :', title, ', 등록날짜 :', reg, '내용:', ctt_list)
+                        print(firm_nm, ', 기사 제목 :', title, ', 등록날짜 :', reg, '내용:', article_list)
 
                 start_no += connect_cnt  # 다음 페이지 설정
 
@@ -500,8 +542,8 @@ def decenter_crawling(p_file_path):
             c_list = list(map(lambda x: re.sub('[^A-Za-z0-9가-힣↑↓]', '', x.text), c_list))
             c_list = [x for x in c_list if x != '']
             news_dict['content'].append(c_list)
-            # 등록 일시
-            reg = atc_info.find('li',{'class':'letter'}).text
+            # 등록 일시(수정 기준)
+            reg = re.sub('[\n\r수정]', '', atc_info.find_all('span',{'class':'url_txt'})[1].text).strip()
             news_dict['reg_date'].append(reg)  # 기사 날짜 정보 담기
 
             print('기사 제목 :', title, '=> 크롤링 성공')
@@ -709,20 +751,35 @@ def binance_info_crawling(p_file_path, p_start_date, p_end_date):
     #                                       2. 전환선(9일, 단기) 이 기준선을 역전하는가??? => 중기 및 단기 상승, 하락 추세를 결정
     #
 
-    # 가격 값 전체에 대한 평균
-    df_size = bit_df[['종가', '오픈', '고가', '저가']].shape[0] * bit_df[['종가', '오픈', '고가', '저가']].shape[1]
-    avg_value = bit_df[['종가', '오픈', '고가', '저가']].sum().sum() / df_size
-    dv_max_value = abs(np.max(bit_df[['종가', '오픈', '고가', '저가']] - avg_value).max())
-
-    # SCALING => 편차 / 편차의 최대 절대값 (산출값 <= 1 )
-    scale_df = (bit_df[['종가', '오픈', '고가', '저가', '전환선', '기준선', '선행스팬_1', '선행스팬_2', '후행스팬']] - avg_value) / dv_max_value
+    # # 가격 값 전체에 대한 평균
+    # df_size = bit_df[['종가', '오픈', '고가', '저가']].shape[0] * bit_df[['종가', '오픈', '고가', '저가']].shape[1]
+    # avg_value = bit_df[['종가', '오픈', '고가', '저가']].sum().sum() / df_size
+    # dv_max_value = abs(np.max(bit_df[['종가', '오픈', '고가', '저가']] - avg_value).max())
+    #
+    # # SCALING => 편차 / 편차의 최대 절대값 (산출값 <= 1 )
+    # scale_df = (bit_df[['종가', '오픈', '고가', '저가', '전환선', '기준선', '선행스팬_1', '선행스팬_2', '후행스팬']] - avg_value) / dv_max_value
+    # scale_df.columns = [x + '_SCALING' for x in scale_df.columns]
+    #
+    # bit_df = pd.merge(bit_df, scale_df, left_index=True, right_index=True, how='left')
+    c_bd = (datetime.datetime.today() - datetime.timedelta(days=99)).strftime('%Y%m%d')  # 일봉 차트 기준(100일)
+    bit_df = bit_df[bit_df['등록시간'] >= c_bd]
+    scale_col = ['종가', '오픈', '고가', '저가', '전환선', '기준선', '선행스팬_1', '선행스팬_2', '후행스팬']
+    ma_scaler = MaxAbsScaler()
+    avg_value = np.nanmean(bit_df[scale_col].values)
+    ma_scaler.fit(np.array(bit_df[scale_col] - avg_value).flatten().reshape(-1, 1))
+    scale_data = ma_scaler.transform(np.array(bit_df[scale_col] - avg_value))
+    scale_df = pd.DataFrame(data=scale_data, columns=scale_col, index=bit_df.index)
     scale_df.columns = [x + '_SCALING' for x in scale_df.columns]
 
-    bit_df = pd.merge(bit_df, scale_df, left_index=True, right_index=True, how='left')
+    # 스케일링 데이터 Merge
+    bit_df = pd.concat([bit_df, scale_df], axis=1)
+    print(bit_df, '스케일링 MERGE 완료')
+
+
     # 컬럼 재배치 및 수정
-    bit_df = bit_df[
-        ['등록시간', '저가', '오픈', '종가', '고가', '거래량', '저가_SCALING', '오픈_SCALING', '종가_SCALING', '고가_SCALING', 'RSI_3',
-         'RSI_7', 'RSI_14', '전환선_SCALING', '기준선_SCALING', '선행스팬_1_SCALING', '선행스팬_2_SCALING', '후행스팬_SCALING']]
+    bit_df = bit_df[['등록시간', '저가', '오픈', '종가', '고가', '거래량',
+                     '전환선', '기준선', '선행스팬_1', '선행스팬_2', '후행스팬',
+                     'RSI_3', 'RSI_7', 'RSI_14']]
 
     # 출처 컬럼 생성
     bit_df['출처'] = 'binance'
@@ -750,16 +807,15 @@ def binance_info_crawling(p_file_path, p_start_date, p_end_date):
     return
 
 # 기본 세팅 기간 99일 전(오늘 꺼까지 포함하면 총 100일)
-bd = (datetime.datetime.today() - datetime.timedelta(days=99)).strftime('%Y/%m/%d')
+bd = (datetime.datetime.today() - datetime.timedelta(days=200)).strftime('%Y/%m/%d')
 td = datetime.datetime.today().strftime('%Y/%m/%d')
 binance_info_crawling(p_file_path=file_path, p_start_date=bd, p_end_date=td)
 
-print('전체 크롤링 완료')
 
 ########################################################################
-# 6. 업비트 API를 활용한 데이터 수집 (현재 날짜 ~ 100일전 기준 : 100일)
+# 6. 업비트 API를 활용한 데이터 수집 (차트 일봉 기준 => 현재 날짜 ~ 100일전 기준)
 ########################################################################
-def upbit_api(p_file_path, p_interval):
+def upbit_api_modeling(p_file_path, p_interval):
     print('#' * 80)
     print('#'*30, '업비트 API 데이터 수집', '#'*30)
     ac_key = 'BFQ8XewRvrFJTQcsCDrAuGCdxVRmH9Ixphdezydf'
@@ -782,8 +838,11 @@ def upbit_api(p_file_path, p_interval):
     # 학습 데이터 기간 : 2년 6개월
     # 검증 데이터 기간 : 2년 6개월 이후 나머지 기간(최근)
     bd = datetime.datetime(year=2017, month=9, day=25)
+    c_bd = (datetime.datetime.today() - datetime.timedelta(days=99)).strftime('%Y%m%d')# 일봉 차트 기준(100일)
     data_term = (datetime.datetime.today() - bd).days + 1 # 비트코인 시작날 포함 +1
+
     # 오늘 날짜
+
     today_dt = datetime.datetime.today().strftime('%Y%m%d')
     # 데이터 가져오기
     upbit_df = pyupbit.get_ohlcv(ticker='KRW-BTC', interval=p_interval, count=data_term) # count +1
@@ -855,43 +914,78 @@ def upbit_api(p_file_path, p_interval):
     # 분석 기법 1 : '구름' => 선행스팬 1, 선행스팬 2의 사이!!
     # 분석 기법 2 : 전환선과 기준선의 관계 => 1. 기준선(26일, 중기) 중기적인 추세를 얘기하고 상승, 하락 추세를 어느정도 판별
     #                                       2. 전환선(9일, 단기) 이 기준선을 역전하는가??? => 중기 및 단기 상승, 하락 추세를 결정
-    #
-
 
     # 가격 값 전체에 대한 평균
-    df_size = upbit_df[['종가', '오픈', '고가', '저가']].shape[0] * upbit_df[['종가', '오픈', '고가', '저가']].shape[1]
-    avg_value = upbit_df[['종가', '오픈', '고가', '저가']].sum().sum() / df_size
-    dv_max_value = abs(np.max(upbit_df[['종가', '오픈', '고가', '저가']] - avg_value).max())
 
-    # SCALING => 편차 / 편차의 최대 절대값 (산출값 <= 1 )
-    scale_df = (upbit_df[['종가', '오픈', '고가', '저가', '전환선', '기준선', '선행스팬_1', '선행스팬_2', '후행스팬']] - avg_value) / dv_max_value
-    scale_df.columns = [x + '_SCALING' for x in scale_df.columns]
+    # df_size = upbit_df[['종가', '오픈', '고가', '저가']].shape[0] * upbit_df[['종가', '오픈', '고가', '저가']].shape[1]
+    # avg_value = upbit_df[['종가', '오픈', '고가', '저가']].sum().sum() / df_size
+    # dv_max_value = abs(np.max(upbit_df[['종가', '오픈', '고가', '저가']] - avg_value).max())
+    #
+    # # SCALING => 편차 / 편차의 최대 절대값 (산출값 <= 1 )
+    # scale_df = (upbit_df[['종가', '오픈', '고가', '저가', '전환선', '기준선', '선행스팬_1', '선행스팬_2', '후행스팬']] - avg_value) / dv_max_value
+    # scale_df.columns = [x + '_SCALING' for x in scale_df.columns]
 
-    upbit_df = pd.merge(upbit_df, scale_df, left_index=True, right_index=True, how='left')
+    # 차트용 데이터 100일 추출
+    upbit_chart_df = upbit_df[upbit_df['등록시간'] >= c_bd]
+    print(id(upbit_df), id(upbit_chart_df))
+    # 전체 대상, 100일 대상 스케일링
 
+    # for df_nm in ['upbit_df', 'upbit_chart_df']:
+    # for df_nm in ['test_df']:
+    def scaling(p_data):
+        scale_col = ['종가', '오픈', '고가', '저가', '전환선', '기준선', '선행스팬_1', '선행스팬_2', '후행스팬']
+        ma_scaler = MaxAbsScaler()
+        avg_value = np.nanmean(p_data[scale_col].values)
+        ma_scaler.fit(np.array(p_data[scale_col] - avg_value).flatten().reshape(-1,1))
+        scale_data = ma_scaler.transform(np.array(p_data[scale_col] - avg_value))
+        scale_df = pd.DataFrame(data=scale_data, columns=scale_col, index=p_data.index)
+        scale_df.columns = [x + '_SCALING' for x in scale_df.columns]
+
+        # 스케일링 데이터 Merge
+        print('### Merge 전 데이터 프레임 정보들 ###')
+        print(len(p_data), len(p_data.columns))
+        print(len(scale_df), len(scale_df.columns))
+        print('####################################')
+        p_data = p_data.merge(scale_df, right_index=True, left_index=True, how='left')
+        print(id(p_data))
+        print('Merge 후')
+        print(p_data.columns, len(p_data), len(p_data.columns))
+        print('스케일링 MERGE 완료')
+
+        print('최종')
+        # print(vars())
+        return p_data
+    upbit_df = scaling(p_data=upbit_df)
+    upbit_chart_df = scaling(p_data=upbit_chart_df)
     # 컬럼 재배치 및 수정
-    # upbit_df = upbit_df[
-    #     ['등록시간','저가','오픈','종가','고가','거래량','저가_SCALING','오픈_SCALING','종가_SCALING','고가_SCALING','RSI_3',
-    #      'RSI_7', 'RSI_14','전환선_SCALING', '기준선_SCALING', '선행스팬_1_SCALING', '선행스팬_2_SCALING', '후행스팬_SCALING']]
+    # upbit_chart_df = upbit_chart_df[
+    #     ['등록시간', '저가', '오픈', '종가', '고가', '거래량', '저가_SCALING', '오픈_SCALING', '종가_SCALING', '고가_SCALING', 'RSI_3',
+    #      'RSI_7', 'RSI_14', '전환선_SCALING', '기준선_SCALING', '선행스팬_1_SCALING', '선행스팬_2_SCALING', '후행스팬_SCALING']]
+    upbit_chart_df = upbit_chart_df[['등록시간', '저가', '오픈', '종가', '고가', '거래량',
+                                     '전환선', '기준선', '선행스팬_1', '선행스팬_2', '후행스팬',
+                                     'RSI_3', 'RSI_7', 'RSI_14']]
+
 
     # 출처 컬럼 생성
-    # upbit_df['출처'] = 'upbit'
+    upbit_chart_df['출처'] = 'upbit'
 
     # 데이터 생성 및 적재
-    # today_dt = datetime.datetime.today().strftime(format='%Y%m%d')  # 오늘 날짜(적재 날짜)
-    # upload_fnm = 'bitcoin_info.csv'  # 적재 파일명
-    # f_list = os.path.splitext(p_file_path + 'static\\coin_data\\' + upload_fnm)
-    # upload_fnm = f_list[0] + '_' + today_dt + f_list[1]
-    #
-    # # 딕셔너리 데이터 프레임에 적재
-    # if os.path.isfile(upload_fnm) == False:
-    #     print('업비트 정보 파일 미존재 => 파일생성 및 적재')
-    #     upbit_df.to_csv(upload_fnm, index=False, mode='w', encoding='cp949')
-    # else:
-    #     print('업비트 정보 파일 존재 => 적재')
-    #     upbit_df.to_csv(upload_fnm, index=False, mode='a', header=False, encoding='cp949')
-    # print('적재완료')
-    # print('#' * 80)
+    today_dt = datetime.datetime.today().strftime(format='%Y%m%d')  # 오늘 날짜(적재 날짜)
+    upload_fnm = 'bitcoin_info.csv'  # 적재 파일명
+    f_list = os.path.splitext(p_file_path + 'static\\coin_data\\' + upload_fnm)
+    upload_fnm = f_list[0] + '_' + today_dt + f_list[1]
+
+    # 딕셔너리 데이터 프레임에 적재
+    if os.path.isfile(upload_fnm) == False:
+        print('비트코인 업비트 차트 정보 파일 미존재 => 파일생성 및 적재')
+        upbit_chart_df.to_csv(upload_fnm, index=False, mode='w', encoding='cp949')
+    else:
+        print('비트코인 업비트 차트 정보 파일 존재 => 적재')
+        upbit_chart_df.to_csv(upload_fnm, index=False, mode='a', header=False, encoding='cp949')
+
+
+    print('적재완료')
+    print('#' * 80)
 
     ### 모델링 데이터 준비(학습, 검증) 및 변수 추출
     # 변수 재정의 => value, ADJ종가, 후행스팬, 후행스팬_SCALING 컬럼 제거
@@ -908,18 +1002,9 @@ def upbit_api(p_file_path, p_interval):
     upbit_tr_df = upbit_df[:-split_no]  # TRAIN SET
     upbit_test_df = upbit_df[-split_no:]  # TEST SET
 
-    # 학습데이터 셋
-    # upbit_tr_df = upbit_df.sample(frac=0.8)
-    # 검증데이터 셋
-    # upbit_test_df = upbit_df.drop(index=upbit_tr_df.index)
-
-    # Scaling(스케일링 => 모델 효과 개선?? 원래의 전통 모델 60프로, DNN 50프로대)
-
-
     ## 예측모델 => 컨셉 전날의 데이터로 다음 날의 종가 예측
     # pycaret 준비단계
     setup_rg = setup(data=upbit_tr_df, target='target', ignore_features=['등록시간'], silent=True)
-
 
     # compare_models : 모델 비교(sort = 비교 기준 지표, n_selecd = return 으로 상위 추출 모델리스트 수)
     best_models = compare_models(n_select=3, sort='MSE')
@@ -942,20 +1027,8 @@ def upbit_api(p_file_path, p_interval):
     models_idx_df = pull()
     models_idx_df = models_idx_df.reset_index().rename(columns={'index':'model_nm'})
     print('### 모델 결과 지표기준(R2)에 따른 모델 순위 ###','\n',models_idx_df)
-    model_result_dict = models_idx_df[['Model','MAE','MSE']][:1].to_dict('list')
+
     # 모델 튜닝
-    # tuned_models_dict = dict()
-    # cnt = 0
-    # for m in best_models:
-    #     cnt += 1
-    #     tuned_models_dict[cnt] = list()
-    #     tuned_models_dict[cnt].append(tune_model(m, optimize='RMSE'))
-    #     tuned_models_dict[cnt].append(pull())
-    # 1.435753e+06
-    # 9.100064e+05
-    # tuned_models_dict[1]
-    # best_models[0]
-    # 1.702955e+06
     # tune_model 함수의 옵션
     # estimator
     # fold
@@ -972,7 +1045,6 @@ def upbit_api(p_file_path, p_interval):
     # bagged_models_idx_df = pull()
     # models_idx_df
 
-
     # blend_model => 모델간 결합
     # blend_model()
     # blended = blend_models(estimator_list=best_models, fold=2)
@@ -980,9 +1052,23 @@ def upbit_api(p_file_path, p_interval):
 
     # 최종 모델 선정 및 검증
     final_model = finalize_model(best_models[0])
-    print('최종모델 :', final_model)
+    print('최종 선정 TOP 모델 :', final_model)
     upbit_test_df = predict_model(final_model, data=upbit_test_df) # 예측값 컬럼명 : 'Label'
     upbit_test_df.rename(columns={'Label' : '전통모델_pred'}, inplace=True) # 예측값 컬럼명 변경
+
+    # 테스트 데이터에 대한 결과 지표 산출
+    trd_mae = mean_absolute_error(y_pred=upbit_test_df['전통모델_pred'], y_true=upbit_test_df['target'])
+    trd_mse = mean_squared_error(y_pred=upbit_test_df['전통모델_pred'], y_true=upbit_test_df['target'])
+
+    # 모델 및 결과지표 딕셔너리 선언
+    model_result_dict = dict()
+    for i in ['Model', 'MAE', 'MSE', 'Accuracy']:
+        model_result_dict[i] = list()
+    # 전통 모델 결좌 지표 담기
+    model_result_dict['Model'].append(models_idx_df['Model'].values[0])
+    model_result_dict['MAE'].append(trd_mae)
+    model_result_dict['MSE'].append(trd_mse)
+
     # 실제값 : UP, DOWN (올랐다, 내렸다) 분류 문제까지 정의
     upbit_test_df['target_updown'] = upbit_test_df['target'] - upbit_test_df['종가']
     upbit_test_df['target_updown'] = upbit_test_df['target_updown'].apply(lambda x : 'UP' if x > 0 else 'STAY_OR_DOWN') # 실제값 : 다음날 종가 'UP', 'STAY_OR_DOWN'
@@ -992,6 +1078,7 @@ def upbit_api(p_file_path, p_interval):
     upbit_test_df['전통모델_정답여부'] = [1 if pred == tgt else 0 for pred, tgt in zip(upbit_test_df['전통모델_등락여부'], upbit_test_df['target_updown'])]
 
     model_acc = upbit_test_df['전통모델_정답여부'].sum()/len(upbit_test_df)
+    model_result_dict['Accuracy'].append(model_acc)
     print('등락여부 정답률 :', round(model_acc, 2)*100,'%')
 
     # 모델 저장
@@ -1000,15 +1087,6 @@ def upbit_api(p_file_path, p_interval):
 
     ### 2. 분류 모델(인공신경망) => DDN, LSTM Classification 모델 (분류 : 상승, 하락)
     ### 2. 인공신경망 회귀(Regression) 모델 => 다음날 '종가' 예측
-
-    # 학습 및 테스트 데이터 => 타겟 변수(분류 : 1 => 상승, 0 => 동결 또는 하락) 생성, Numpy로 형변환
-    # upbit_tr_df['target_updown'] = upbit_tr_df['target'] - upbit_tr_df['종가'] # N+1 일 종가 - N 일 종가
-    # upbit_tr_df['target'] = upbit_tr_df['target_updown'].apply(lambda x: 1 if x > 0 else 0)  # 실제값 : 다음날 종가 'UP'=>1, 'STAY_OR_DOWN'=>0
-    # upbit_tr_df.drop(columns=['target_updown'], inplace=True)
-    #
-    # upbit_test_df['target_updown'] = upbit_test_df['target'] - upbit_test_df['종가']  # N+1 일 종가 - N 일 종가
-    # upbit_test_df['target'] = upbit_test_df['target_updown'].apply(lambda x: 1 if x > 0 else 0)  # 실제값 : 다음날 종가 'UP'=>1, 'STAY_OR_DOWN'=>0
-    # upbit_test_df.drop(columns=['target_updown'], inplace=True)
 
     # 학습 대상 컬럼만 추출(마이너스 값이 포함된 컬럼도 제외)
     d_col = ['등록시간', '출처', 'target']
@@ -1074,6 +1152,7 @@ def upbit_api(p_file_path, p_interval):
 
     # 정확도
     dnn_acc = upbit_test_df['DNN_정답여부'].sum()/len(upbit_test_df)
+    model_result_dict['Accuracy'].append(dnn_acc)
     print('DNN 모델 정확도 :', dnn_acc)
 
 
@@ -1082,7 +1161,7 @@ def upbit_api(p_file_path, p_interval):
     ## 학습데이터 구축(Window size : 5)
     # INPUT(TRAIN, TEST) 데이터 생성 함수
     def create_input_data(p_window_size, p_feature, p_scaling):
-
+        print('################ INPUT DATA 생성 시작 ################')
         # 1. Window 사이즈 설정
         w_size = p_window_size
         print('Window 사이즈 :', w_size)
@@ -1148,12 +1227,6 @@ def upbit_api(p_file_path, p_interval):
         tr_arr = all_arr[:-split_no]  # TRAIN INPUT DATA
         tt_arr = all_arr[-split_no:]  # TEST INPUT DATA
 
-        # INPUT DATA 3차원 행렬로 변환(samples, time_steps, features)
-        # tr_arr = np.reshape(tr_arr, (tr_arr.shape[0], 1, tr_arr.shape[1]))
-        # tt_arr = np.reshape(tt_arr, (tt_arr.shape[0], 1, tt_arr.shape[1]))
-
-        print('INPUT 데이터 shape :', tr_arr.shape, tt_arr.shape)
-
         # TRAIN & TEST TARGET DATA
         tg_arr = np.array(upbit_df['target'][w_size:])
         tg_arr = np.reshape(tg_arr, (tg_arr.shape[0],1))
@@ -1162,8 +1235,10 @@ def upbit_api(p_file_path, p_interval):
 
         print('TRAIN DATA shape(INPUT, TARGET) :', tr_arr.shape, tr_tg_arr.shape)
         print('TEST DATA shape(INPUT, TARGET) :', tt_arr.shape, tt_tg_arr.shape)
+        print('################ INPUT DATA 생성 완료 ################')
 
         return tr_arr, tr_tg_arr, tt_arr, tt_tg_arr
+    # 학습데이터 생성 함수 실행
     tr_arr, tr_tg_arr, tt_arr, tt_tg_arr = create_input_data(p_window_size=5, p_feature=1, p_scaling=1)
 
     # 모델 생성(LSTM)
@@ -1180,7 +1255,7 @@ def upbit_api(p_file_path, p_interval):
     # 모델 학습
     hist = lstm_model.fit(tr_arr, tr_tg_arr, epochs=50, verbose=2)
 
-    # 스코어링
+    # 결과 지표 산출
     lstm_eval = lstm_model.evaluate(tt_arr, tt_tg_arr) # LOSS, MAE, MSE 결과
     model_result_dict['Model'].append('LSTM')  # 모델명 저장
     model_result_dict['MAE'].append(lstm_eval[1])  # MAE 저장
@@ -1197,25 +1272,27 @@ def upbit_api(p_file_path, p_interval):
 
     # 정확도
     lstm_acc = upbit_test_df['LSTM_정답여부'].sum()/len(upbit_test_df)
+    model_result_dict['Accuracy'].append(lstm_acc)
     # DNN - loss: 1580319737320.3694 - mean_absolute_error: 668930.7644 - mean_squared_error: 1580319737320.3694
     print('LSTM 모델 정확도 :', lstm_acc)
 
     # 전체 모델 비교
     print('정확도 => 전통모델, DNN, LSTM :', model_acc, dnn_acc, lstm_acc)
 
-    ### 모델 결과 적재 ###
+    ### 업비트 스코어 데이터 및 성능 적재 ###
+    # 스코어 성능 적재
     model_result_df = pd.DataFrame(model_result_dict)
+    model_result_df['출처'] = 'upbit'
     model_result_df.to_csv(file_csv_path+'model_idx_result_'+today_dt+'.csv', index=False, mode='w', encoding='cp949')
-    print('모델 결과 지표 적재')
 
+    # 스코어 데이터 적재
+    upbit_test_df['출처'] = 'upbit'
+    upbit_test_df.to_csv(file_csv_path + 'score_data_' + today_dt + '.csv', index=False, mode='w', encoding='cp949')
+    print('스코어 결과 지표 적재 완료')
 
+    return
 # 업비트 기준 : 시가, 종가, 고가, 저가 (시간 단위 기준 결정)
 interval = 'day'
-upbit_api(p_file_path=file_path, p_interval=interval)
+upbit_api_modeling(p_file_path=file_path, p_interval=interval)
 
-
-
-
-
-
-
+print('전체 크롤링 완료')

@@ -8,6 +8,7 @@ import os
 from tqdm import tqdm
 import math
 from ast import literal_eval
+import shutil # 파일 복사
 
 # 스케일링 패키지
 from sklearn.preprocessing import MinMaxScaler, MaxAbsScaler
@@ -49,6 +50,12 @@ from wordcloud import WordCloud, STOPWORDS
 # 2. 데이터 전처리
 # 3. 텍스트 마이닝(문맥 분석)
 # 4. 스코어 산출
+
+# 적재 파일 리스트
+# 1. score_날짜.csv => 텍스트 분석 스코어 정보
+# 2. 코인및상품_매핑단어_날짜.csv => 코인 및 상품 Key에 대해 매핑된 긍부정 단어 리스트 정보
+# 3. 핵심단어_빈도수_날짜.csv => 핵심 단어 Key에 대한 빈도수 정보
+# 4. wordcloud_날짜.jpg => 워드 클라우드 이미지 파일
 ##############################################################################################
 
 
@@ -228,10 +235,10 @@ def text_analysis(p_all_df,p_all_word_list,p_anal_dt_list,coin_nm_list,prd_nm_li
 
     # 날짜별 분석을 따로 실시
     for dt in tqdm(p_anal_dt_list):
-        # dt = '2021-06-18 00:00:00'
+        # dt = '2021-08-21 00:00:00'
         print('날짜 :', dt, '=> 데이터 추출')
         next_dt = datetime.datetime(year=int(dt[:4]),month=int(dt[5:7]),day=int(dt[8:10])) + datetime.timedelta(1)
-        next_dt = next_dt.strftime('%Y-%m-%d HH:MM:DD')
+        next_dt = next_dt.strftime('%Y-%m-%d %H:%M:%S')
         # 날짜별 크롤링 데이터 추출
         df = p_all_df[(p_all_df['reg_date'] >= dt) & (p_all_df['reg_date'] < next_dt)]
 
@@ -472,10 +479,12 @@ def text_analysis(p_all_df,p_all_word_list,p_anal_dt_list,coin_nm_list,prd_nm_li
             #     freq_dict[noun] = idx+1
             for noun, cnt in zip(freq_df['명사'], freq_df['COUNT']):
                 freq_dict[noun] = cnt
-
-            wc = WordCloud(width=400,height=400,background_color='white',font_path='C:\\Windows\\Fonts\\H2SA1M.TTF')\
-                .generate_from_frequencies(freq_dict)
-            wc.to_file(file_image_path+'wordcloud_'+dt.split(' ')[0].replace('-','')+'.jpg')
+            if sum(freq_dict.values()) == 0: # 핵심 단어의 빈도수가 모두 0일때
+                shutil.copyfile(file_image_path+'핵심단어부재.jpg', file_image_path+'wordcloud_'+dt.split(' ')[0].replace('-','')+'.jpg')
+            else:
+                wc = WordCloud(width=400,height=400,background_color='white',font_path='C:\\Windows\\Fonts\\H2SA1M.TTF')\
+                    .generate_from_frequencies(freq_dict)
+                wc.to_file(file_image_path+'wordcloud_'+dt.split(' ')[0].replace('-','')+'.jpg')
 
     # 날짜에 대한 For문 종료
 
@@ -488,6 +497,8 @@ text_analysis(p_all_df=all_df, p_all_word_list=all_word_list, p_anal_dt_list=ana
 # 차트용(각종 지표 및 지수) 데이터 생성 및 적재
 ############################################################################################
 def making_index_result(p_file_csv_path):
+    print('#'*40, '차트용 데이터 생성 및 적재', '#'*40)
+
     # 시간 설정(서버는 9시간 전 고려)
     dt = datetime.datetime.today().strftime('%Y%m%d')
 
