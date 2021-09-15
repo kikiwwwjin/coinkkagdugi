@@ -99,7 +99,7 @@ def chart():
     coin_list = list(to_df['코인명'].unique())  # 코인리스트 추출
     alt_coin_df = freq_df[freq_df['명사'].isin(coin_list)] # 코인리스트에 대한 빈도수 데이터 프레임 추출
     # 주간(7일) 기준 및 알트코인 추출
-    alt_coin_df = alt_coin_df[(alt_coin_df['등록시간'] > bf_dt) & (alt_coin_df['명사'] != '비트코인')]
+    alt_coin_df = alt_coin_df[(alt_coin_df['등록시간'] > bf_dt) & (alt_coin_df['명사'].isin(['비트코인', '알트코인']) == False)]
 
     # 주간 알트 코인별 빈도수 합계 => 상위 7개 코인 추출
     alt_coin_df = alt_coin_df.groupby(['명사']).sum().reset_index().sort_values(['COUNT'], ascending=False)
